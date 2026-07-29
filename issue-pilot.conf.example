@@ -44,7 +44,9 @@ LANES=""
 # LANE_codex_LABEL="Codex"
 # LANE_codex_MODE="always"
 # LANE_codex_CONCURRENCY=3
-# LANE_codex_CMD='codex exec "$(envsubst < examples/goal.md)"'
+# LANE_codex_CMD='codex exec --dangerously-bypass-approvals-and-sandbox "$(envsubst < examples/goal.md)"'
+#   (headless batches need the sandbox bypassed, same as claude's --dangerously-skip-permissions;
+#    note codex has no subagents — it works through the batch sequentially)
 # LANE_main_LABEL="Claude main"
 # LANE_main_MODE="window"
 # LANE_main_CREDENTIALS="$HOME/.claude/.credentials.json"

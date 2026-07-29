@@ -6,6 +6,8 @@ subscription quota is spent by the weekly reset — not before, not after.
 Three small loops, plain bash + `gh` + systemd. No daemon framework, no database:
 GitHub Issues **is** the queue, labels **are** the state machine.
 
+![status page](docs/status-page.png)
+
 ```
 ┌─────────┐  queue low   ┌──────────┐  ready issues  ┌──────────┐   ┌─ subagent ─► PR ─► CI ─► merge?
 │ refill  │ ───────────► │  GitHub  │ ◄────────────  │ dispatch │──►│─ subagent ─► …
