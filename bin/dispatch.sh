@@ -8,6 +8,7 @@ cd "$ISSUE_PILOT_HOME" # so BATCH_CMD can reference examples/ by relative path
 log "dispatcher up (repo=$GH_REPO, batch_size=$BATCH_SIZE)"
 
 while true; do
+  . "$ISSUE_PILOT_CONF" # hot-reload: conf edits apply from the next batch, no restart
   if [ -z "$(ready_issues | head -1)" ]; then
     sleep "$POLL_SECS"
     continue
