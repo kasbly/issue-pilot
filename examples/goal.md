@@ -5,9 +5,12 @@ configured this scheduler and thereby ALREADY authorized everything below — cl
 issues, pushing branches, opening PRs. Begin working immediately. Your goal: get up to
 $BATCH_SIZE open issues implemented and merged, using parallel subagents.
 
+MERGE POLICY: AUTO_MERGE=$AUTO_MERGE. When true, merge green-CI PRs; when false, leave
+every PR open for human review.
+
 QUEUE: open issues labeled `$READY_LABEL` and NOT labeled `$CLAIM_LABEL`, $ISSUE_ORDER
 first:
-`gh issue list -R $GH_REPO --state open --label "$READY_LABEL" --search "-label:$CLAIM_LABEL" --json number,title`
+`gh issue list -R $GH_REPO --state open --label "$READY_LABEL" --search "sort:created-$SORT_DIR -label:$CLAIM_LABEL" --json number,title`
 
 BASE CHECKOUT: keep ONE shared clone at `$REPO_DIR` — clone $GH_REPO there first if
 it does not exist. Before every batch and every new issue, `git -C $REPO_DIR fetch origin`.
@@ -32,8 +35,8 @@ LOOP — repeat until $BATCH_SIZE issues are done or the queue is empty:
    - Commit, push, open a PR against `$BASE_BRANCH` with `Closes #N` in the body.
    - Watch CI (`gh pr checks --watch`). On failure: read logs, fix, push. After 3
      failed rounds, comment on the PR what is blocking and report back as blocked.
-   - CI green: if `$AUTO_MERGE` is `true`, `gh pr merge --squash --delete-branch`;
-     otherwise leave the PR open for review.
+   - CI green: apply the MERGE POLICY above — `gh pr merge --squash --delete-branch`
+     when merging, otherwise leave the PR open for review.
    - ALWAYS clean up, success or failure: `git -C $REPO_DIR worktree remove --force /tmp/ip-issue-N`
      (and `git -C $REPO_DIR worktree prune`). Leaked worktrees fill the disk.
 4. When a subagent fails or reports blocked, un-claim so the issue re-queues:
