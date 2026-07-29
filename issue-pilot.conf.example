@@ -29,6 +29,9 @@ BATCH_CMD="echo 'no batch command configured' >&2; exit 1"
 # Examples:
 # BATCH_CMD='claude -p "$(envsubst < examples/goal.md)" --dangerously-skip-permissions'
 # BATCH_CMD='codex exec "$(envsubst < examples/goal.md)"'
+# Multiple Claude subscriptions? A per-account settings file picks which one a command
+# burns — e.g. run the scanner on one account and batches on another:
+# BATCH_CMD='claude -p "$(envsubst < examples/goal.md)" --dangerously-skip-permissions --settings ~/.claude/settings-work.json'
 
 # --- Pace (quota thermostat) ---
 # Command printing two numbers on one line: "<pct_of_quota_used 0-100> <seconds_until_reset>".
