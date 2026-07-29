@@ -13,9 +13,11 @@ mkdir -p "$STATE_DIR"
 
 log() { echo "[$(date '+%F %T')] $*"; }
 
-# open issues that are ready and unclaimed, oldest first, one number per line
+# open issues that are ready and unclaimed, one number per line, ISSUE_ORDER first
 ready_issues() {
+  local dir=asc
+  [ "${ISSUE_ORDER:-oldest}" = "newest" ] && dir=desc
   gh issue list -R "$GH_REPO" --state open --label "$READY_LABEL" \
-    --search "sort:created-asc -label:$CLAIM_LABEL" \
+    --search "sort:created-$dir -label:$CLAIM_LABEL" \
     --limit 100 --json number --jq '.[].number'
 }

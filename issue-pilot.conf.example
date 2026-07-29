@@ -18,11 +18,15 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 MIN_WORKERS=1
 MAX_WORKERS=4
 POLL_SECS=30                         # how often the dispatcher looks for free slots / new issues
-# Command run per issue; gets ISSUE_NUMBER and GH_REPO in its environment.
+BASE_BRANCH="main"                   # branch workers branch from and open PRs against
+ISSUE_ORDER="oldest"                 # "oldest" or "newest" issues first
+AUTO_MERGE=false                     # true = worker merges green-CI PRs; false = leave for review
+# Command run per issue; gets ISSUE_NUMBER, GH_REPO, BASE_BRANCH, AUTO_MERGE in its environment.
+# See examples/worker.md for the full implement→PR→fix-CI→merge goal prompt.
 WORKER_CMD="echo 'no worker configured for issue #$ISSUE_NUMBER' >&2; exit 1"
 # Examples:
-# WORKER_CMD='codex exec "Implement github issue #$ISSUE_NUMBER in $GH_REPO and open a PR"'
-# WORKER_CMD='claude -p "Implement github issue #$ISSUE_NUMBER and open a PR" --dangerously-skip-permissions'
+# WORKER_CMD='claude -p "$(envsubst < examples/worker.md)" --dangerously-skip-permissions'
+# WORKER_CMD='codex exec "$(envsubst < examples/worker.md)"'
 
 # --- Pace (quota thermostat) ---
 # Command printing two numbers on one line: "<pct_of_quota_used 0-100> <seconds_until_reset>".

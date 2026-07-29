@@ -46,13 +46,16 @@ Needs: `bash`, `gh` (authenticated), `awk`, `flock`. Run `./test.sh` to verify t
 
 Everything agent-specific lives in your config as shell commands:
 
-- **`SCANNER_CMD`** — generates issues. E.g. a headless agent run:
-  `claude -p "Scan the repo, file up to 75 high-quality issues labeled status/approved"`.
+- **`SCANNER_CMD`** — generates issues. Start from [examples/scanner.md](examples/scanner.md):
+  `claude -p "$(cat examples/scanner.md)"`.
   Wave-size tip: many smaller waves beat one giant dump — quality stays high and the
   usage spreads across the week, which is exactly what the pacer wants.
-- **`WORKER_CMD`** — implements one issue. Gets `ISSUE_NUMBER` and `GH_REPO` in its env:
-  `codex exec "Implement issue #$ISSUE_NUMBER in $GH_REPO and open a PR"`.
-  Per-issue logs land in `state/worker-<n>.log`.
+- **`WORKER_CMD`** — implements one issue end to end. Gets `ISSUE_NUMBER`, `GH_REPO`,
+  `BASE_BRANCH`, and `AUTO_MERGE` in its env. Start from [examples/worker.md](examples/worker.md):
+  fresh checkout → branch off `BASE_BRANCH` → PR → watch CI and fix failures (max 3
+  rounds) → merge if `AUTO_MERGE=true`, else leave for review. `ISSUE_ORDER` picks
+  oldest- or newest-first. "Implement 100 issues" isn't a special mode — it's this
+  loop left running. Per-issue logs land in `state/worker-<n>.log`.
 - **`USAGE_CMD`** — prints `<percent_of_weekly_quota_used> <seconds_until_reset>`.
   Wrap whatever your provider exposes (`ccusage`, a status API, a scraped dashboard).
   Leave empty to disable pacing; the dispatcher then runs a constant `MIN_WORKERS`.

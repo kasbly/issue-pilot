@@ -22,6 +22,7 @@ reap() {
   done
 }
 
+cd "$ISSUE_PILOT_HOME" # so WORKER_CMD can reference examples/ etc. by relative path
 log "dispatcher up (repo=$GH_REPO, min=$MIN_WORKERS, max=$MAX_WORKERS)"
 while true; do
   reap
@@ -34,8 +35,9 @@ while true; do
     issue=$(ready_issues | head -1)
     if [ -n "${issue:-}" ]; then
       gh issue edit "$issue" -R "$GH_REPO" --add-label "$CLAIM_LABEL"
-      ISSUE_NUMBER=$issue GH_REPO=$GH_REPO bash -c "$WORKER_CMD" \
-        >>"$STATE_DIR/worker-$issue.log" 2>&1 &
+      ISSUE_NUMBER=$issue GH_REPO=$GH_REPO \
+        BASE_BRANCH="${BASE_BRANCH:-main}" AUTO_MERGE="${AUTO_MERGE:-false}" \
+        bash -c "$WORKER_CMD" >>"$STATE_DIR/worker-$issue.log" 2>&1 &
       worker_pid_issue[$!]=$issue
       log "started worker pid=$! issue=#$issue ($((running + 1))/$target)"
       continue # fill remaining slots without waiting a full poll
