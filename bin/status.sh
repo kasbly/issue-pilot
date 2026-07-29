@@ -91,9 +91,10 @@ for id in ${LANES:-}; do
   started=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
   lane_rows+=("$(jq -n --arg id "$id" --arg label "$(lane_get "$id" LABEL "$id")" \
     --arg mode "$(lane_get "$id" MODE off)" --argjson conc "$conc" \
+    --arg model "$(lane_get "$id" MODEL)" --arg effort "$(lane_get "$id" EFFORT)" \
     --argjson started "$started" --argjson target "${BATCH_SIZE:-0}" \
     --argjson prs "$all_prs" '
-    {id:$id, label:$label, mode:$mode, concurrency:$conc,
+    {id:$id, label:$label, mode:$mode, concurrency:$conc, model:$model, effort:$effort,
      batch_started:(if $started==0 then null else $started end),
      batch_target:$target,
      batch_done:([$prs[] | select((.headRefName|startswith("pilot-"+$id+"/"))

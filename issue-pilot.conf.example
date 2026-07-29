@@ -35,6 +35,8 @@ BATCH_SIZE=25                        # issues per batch session (small batches s
 #   CREDENTIALS   (window) that account's .claude/.credentials.json for usage reading
 #   USAGE_CMD     (window) override usage source; must print "<pct_used> <secs_to_reset>"
 #                 (default: bin/usage-claude.sh with CREDENTIALS)
+#   MODEL/EFFORT  shown on the status page; keep in sync with the flags in CMD
+#                 (claude: --model X --effort Y · codex: -m X -c model_reasoning_effort=Y)
 # Per-lane overrides of the window defaults below: LANE_<id>_WINDOW_DAYS,
 # LANE_<id>_WINDOW_MAX_PCT, LANE_<id>_MIN_CONCURRENCY, LANE_<id>_MAX_CONCURRENCY,
 # LANE_<id>_BURN_PCT_PER_WORKER_HOUR.

@@ -1,8 +1,8 @@
 [Unit]
-Description=issue-pilot: re-pace every 2 hours
+Description=issue-pilot: re-pace hourly
 
 [Timer]
-OnCalendar=0/2:00
+OnCalendar=hourly
 RandomizedDelaySec=5m
 Persistent=true
 

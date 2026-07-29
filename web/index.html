@@ -98,13 +98,14 @@ async function refresh() {
 
   const lanes = s.lanes || [];
   document.getElementById("lanes").innerHTML = lanes.length
-    ? "<table><tr><th>lane</th><th>mode</th><th>state</th><th>current batch</th><th>total PRs</th></tr>" +
+    ? "<table><tr><th>lane</th><th>model</th><th>mode</th><th>state</th><th>current batch</th><th>total PRs</th></tr>" +
       lanes.map(l => {
         const on = l.concurrency > 0;
         const batch = (on && l.batch_started)
           ? `${l.batch_done} done / ${Math.max(l.batch_target - l.batch_done, 0)} left of ${l.batch_target} picked · running ${fmtDur(now - l.batch_started)}`
           : "—";
-        return `<tr><td>${esc(l.label)}</td><td>${esc(l.mode)}</td>
+        const model = l.model ? esc(l.model) + (l.effort ? ` <span class="kind">${esc(l.effort)}</span>` : "") : "—";
+        return `<tr><td>${esc(l.label)}</td><td>${model}</td><td>${esc(l.mode)}</td>
           <td class="${on ? "ok" : ""}">${on ? `on · ${l.concurrency} subagents` : "off"}</td>
           <td>${batch}</td><td>${l.total_done}</td></tr>`;
       }).join("") + "</table>"
