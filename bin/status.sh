@@ -65,6 +65,25 @@ dispatch=$(systemctl is-active issue-pilot-dispatch.service 2>/dev/null || true)
 claimed=$(gh issue list -R "$GH_REPO" --state open --label "$CLAIM_LABEL" --json number,title,url 2>/dev/null || echo '[]')
 all_prs=$(gh pr list -R "$GH_REPO" --author "@me" --state all --limit 100 --json number,title,url,createdAt,headRefName 2>/dev/null || echo '[]')
 
+# queue + refill
+ready_count=$(ready_issues | wc -l | tr -d ' ')
+open_total=$(gh api "search/issues?q=repo:$GH_REPO+is:issue+is:open&per_page=1" --jq '.total_count' 2>/dev/null || echo 0)
+next_refill=0
+nr=$(systemctl show issue-pilot-refill.timer -p NextElapseUSecRealtime --value 2>/dev/null || true)
+[ -n "$nr" ] && [ "$nr" != "n/a" ] && next_refill=$(date -d "$nr" +%s 2>/dev/null || echo 0)
+read -r rl_ts rl_action rl_detail <"$STATE_DIR/refill-last" 2>/dev/null || { rl_ts=0; rl_action=""; rl_detail=""; }
+refill=$(jq -n --argjson ready "$ready_count" --argjson threshold "${REFILL_THRESHOLD:-0}" \
+  --argjson open "$open_total" --argjson next "$next_refill" \
+  --argjson last_ts "${rl_ts:-0}" --arg last_action "${rl_action:-}" --arg last_detail "${rl_detail:-}" \
+  '{ready:$ready, threshold:$threshold, open_issues:$open, next_run:(if $next==0 then null else $next end),
+    last:(if $last_ts==0 then null else {ts:$last_ts, action:$last_action, detail:$last_detail} end)}')
+
+# merged-PR throughput (server-local calendar days; mergedAt is UTC — close enough for a scoreboard)
+merged=$(gh pr list -R "$GH_REPO" --author "@me" --state merged --limit 100 --json mergedAt 2>/dev/null || echo '[]')
+throughput=$(jq -n --argjson m "$merged" --arg today "$(date +%F)" --arg yday "$(date -d yesterday +%F)" \
+  '{merged_today:([$m[] | select(.mergedAt|startswith($today))] | length),
+    merged_yesterday:([$m[] | select(.mergedAt|startswith($yday))] | length)}')
+
 # per-lane batch progress: PRs are attributed by their pilot-<lane>/ branch prefix
 lane_rows=()
 for id in ${LANES:-}; do
@@ -87,7 +106,8 @@ join_json "${acc_rows[@]}" | jq \
   --argjson workers "$(join_json "${proc_rows[@]}")" \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
+  --argjson refill "$refill" --argjson throughput "$throughput" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, accounts:., lanes:$lanes, workers:$workers,
-    claimed:$claimed, recent_prs:$prs}' \
+    refill:$refill, throughput:$throughput, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

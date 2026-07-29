@@ -7,6 +7,7 @@ log "ready issues: $count (threshold: $REFILL_THRESHOLD)"
 
 if [ "$count" -ge "$REFILL_THRESHOLD" ]; then
   log "queue healthy, nothing to do"
+  echo "$(date +%s) skipped queue=$count" >"$STATE_DIR/refill-last"
   exit 0
 fi
 
@@ -17,4 +18,6 @@ flock -n 9 || { log "refill already running, skipping"; exit 0; }
 log "queue low — running scanner"
 cd "$ISSUE_PILOT_HOME"
 bash -c "$SCANNER_CMD"
-log "scanner finished; ready issues now: $(ready_issues | wc -l | tr -d ' ')"
+after=$(ready_issues | wc -l | tr -d ' ')
+echo "$(date +%s) ran queue=$after" >"$STATE_DIR/refill-last"
+log "scanner finished; ready issues now: $after"

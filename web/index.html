@@ -11,6 +11,7 @@
   h1 { font-size:16px; margin:0 0 4px; } h2 { font-size:13px; color:var(--dim); margin:28px 0 10px; text-transform:uppercase; letter-spacing:.08em; }
   #meta { color:var(--dim); font-size:12px; }
   .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin-top:16px; }
+  #queue { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
   .card .name { font-weight:600; font-size:15px; }
   .kind { font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:99px; padding:1px 8px; margin-left:8px; }
@@ -32,6 +33,9 @@
 <h1>issue-pilot <span id="dispatch" class="pill"></span></h1>
 <div id="meta"></div>
 <div class="cards" id="accounts"></div>
+<h2>Queue &amp; refill</h2>
+<div class="cards" id="queue"></div>
+<div id="refill" class="drift" style="margin-top:8px"></div>
 <h2>Lanes</h2><div id="lanes"></div>
 <h2>Working now</h2><div id="workers"></div>
 <h2>Claimed issues</h2><div id="claimed"></div>
@@ -77,6 +81,20 @@ async function refresh() {
       <div class="drift ${cls}">${driftTxt}${esc(stale)}</div>
     </div>`;
   }).join("");
+
+  const r = s.refill || {}, t = s.throughput || {};
+  const tile = (label, value, cls) =>
+    `<div class="card"><div class="row"><span>${label}</span></div><div class="big ${cls || ""}">${value}</div></div>`;
+  document.getElementById("queue").innerHTML =
+    tile("ready issues", `${r.ready ?? "–"}`, (r.ready != null && r.ready < r.threshold) ? "bad" : "") +
+    tile("open issues", r.open_issues ?? "–") +
+    tile("PRs merged today", t.merged_today ?? "–", "ok") +
+    tile("PRs merged yesterday", t.merged_yesterday ?? "–");
+  const lastR = r.last
+    ? `last refill check ${fmtDur(now - r.last.ts)} ago — ${r.last.action === "ran" ? "scanner RAN" : "skipped"} (${esc(r.last.detail)}, threshold ${r.threshold})`
+    : `no refill check recorded yet (threshold ${r.threshold ?? "?"})`;
+  document.getElementById("refill").textContent =
+    lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "");
 
   const lanes = s.lanes || [];
   document.getElementById("lanes").innerHTML = lanes.length
