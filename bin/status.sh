@@ -79,7 +79,7 @@ refill=$(jq -n --argjson ready "$ready_count" --argjson threshold "${REFILL_THRE
     last:(if $last_ts==0 then null else {ts:$last_ts, action:$last_action, detail:$last_detail} end)}')
 
 # merged-PR throughput (server-local calendar days; mergedAt is UTC — close enough for a scoreboard)
-merged=$(gh pr list -R "$GH_REPO" --author "@me" --state merged --limit 100 --json mergedAt 2>/dev/null || echo '[]')
+merged=$(gh pr list -R "$GH_REPO" --author "@me" --state merged --limit 500 --json mergedAt 2>/dev/null || echo '[]')
 throughput=$(jq -n --argjson m "$merged" --arg today "$(date +%F)" --arg yday "$(date -d yesterday +%F)" \
   '{merged_today:([$m[] | select(.mergedAt|startswith($today))] | length),
     merged_yesterday:([$m[] | select(.mergedAt|startswith($yday))] | length)}')
