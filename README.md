@@ -61,8 +61,11 @@ instead of act. Keep them that way when you adapt them.
   PR, watch CI and fix failures (max 3 rounds), then merge if `AUTO_MERGE=true` or
   leave for review. Session output lands in `state/batch.log`.
 - **`USAGE_CMD`** — prints `<percent_of_weekly_quota_used> <seconds_until_reset>`.
-  Wrap whatever your provider exposes (`ccusage`, a status API, a scraped dashboard).
-  Leave empty to disable pacing; batches then run at a constant `CONCURRENCY`.
+  For Claude subscriptions, [bin/usage-claude.sh](bin/usage-claude.sh) reads the exact
+  numbers the `/usage` screen shows (via the OAuth usage endpoint and the account's
+  local credentials file) — no calibration needed. For other providers, wrap whatever
+  they expose. Leave empty to disable pacing; batches then run at a constant
+  `CONCURRENCY`.
 
 ## /goal — the same thing, interactively
 
