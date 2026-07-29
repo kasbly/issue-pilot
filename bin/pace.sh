@@ -29,8 +29,9 @@ fi
 [ "$target" -lt "$MIN_CONCURRENCY" ] && target=$MIN_CONCURRENCY
 echo "$target" >"$STATE_DIR/concurrency"
 
-log "used=${used}% expected=${expected}% drift=${behind}% concurrency: $current -> $target"
+label="${ACCOUNT_LABEL:+[$ACCOUNT_LABEL] }"
+log "${label}used=${used}% expected=${expected}% drift=${behind}% concurrency: $current -> $target"
 
 if [ -n "${NOTIFY_CMD:-}" ] && awk -v b="$behind" -v t="$PACE_TOLERANCE" 'BEGIN { exit !(b > 2*t || b < -2*t) }'; then
-  MSG="issue-pilot: usage ${used}% vs ideal ${expected}% (drift ${behind}%), concurrency=$target" bash -c "$NOTIFY_CMD" || true
+  MSG="issue-pilot: ${label}usage ${used}% vs ideal ${expected}% (drift ${behind}%), concurrency=$target" bash -c "$NOTIFY_CMD" || true
 fi
