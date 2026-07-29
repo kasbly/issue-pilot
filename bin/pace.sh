@@ -18,13 +18,12 @@ budget=$(awk -v c="$cores" -v l="$load5" -v m="$mem_mb" \
            b = (cpu < mem) ? cpu : mem; if (b < floor) b = floor; print b }')
 echo "$budget $load5 $cores $mem_mb" >"$STATE_DIR/resource-budget"
 log "resource budget: $budget workers (load ${load5}/${cores} cores, ${mem_mb}MB avail)"
-remaining=$budget
 
+declare -A want=()
 for id in ${LANES:-}; do
   label=$(lane_get "$id" LABEL "$id")
   mode=$(lane_get "$id" MODE off)
-  out="$STATE_DIR/lane-$id.concurrency"
-  prev=$(cat "$out" 2>/dev/null || echo 0)
+  prev=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
   target=0
 
   case "$mode" in
@@ -61,13 +60,33 @@ for id in ${LANES:-}; do
       ;;
   esac
 
-  # cap by what's left of the shared server resource budget
-  if [ "$target" -gt "$remaining" ]; then
-    log "[$label] capped by resource budget: $target -> $remaining"
-    target=$remaining
-  fi
-  remaining=$((remaining - target))
+  want[$id]=$target
+done
 
+# Allocate the budget in two passes so no active lane is ever starved to zero:
+# pass 1 guarantees every lane that wants workers one slot (in LANES order);
+# pass 2 hands out the remainder in LANES order (put deadline lanes first).
+declare -A grant=()
+remaining=$budget
+for id in ${LANES:-}; do
+  grant[$id]=0
+  if [ "${want[$id]}" -gt 0 ] && [ "$remaining" -gt 0 ]; then
+    grant[$id]=1
+    remaining=$((remaining - 1))
+  fi
+done
+for id in ${LANES:-}; do
+  extra=$((want[$id] - grant[$id]))
+  [ "$extra" -gt "$remaining" ] && extra=$remaining
+  [ "$extra" -gt 0 ] && { grant[$id]=$((grant[$id] + extra)); remaining=$((remaining - extra)); }
+done
+
+for id in ${LANES:-}; do
+  label=$(lane_get "$id" LABEL "$id")
+  out="$STATE_DIR/lane-$id.concurrency"
+  prev=$(cat "$out" 2>/dev/null || echo 0)
+  target=${grant[$id]}
+  [ "$target" -lt "${want[$id]}" ] && log "[$label] capped by resource budget: ${want[$id]} -> $target"
   echo "$target" >"$out"
   if [ "$target" != "$prev" ] && [ -n "${NOTIFY_CMD:-}" ]; then
     MSG="issue-pilot: lane '$label' concurrency $prev -> $target" bash -c "$NOTIFY_CMD" || true

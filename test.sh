@@ -86,6 +86,13 @@ got_a=$(cat "$tmp/state/lane-a.concurrency"); got_b=$(cat "$tmp/state/lane-b.con
 [ "$got_a" = 3 ] && [ "$got_b" = 1 ] || { echo "FAIL shared budget: a=$got_a b=$got_b expected 3/1"; exit 1; }
 echo "ok   shared budget allocated in lane order"
 
+# tight budget (3 slots, two lanes wanting 3): nobody starves — 2 / 1, not 3 / 0
+sed -i.bak "s/echo \"16 8 64000\"/echo \"16 10 64000\"/" "$ISSUE_PILOT_CONF"
+bash bin/pace.sh >/dev/null
+got_a=$(cat "$tmp/state/lane-a.concurrency"); got_b=$(cat "$tmp/state/lane-b.concurrency")
+[ "$got_a" = 2 ] && [ "$got_b" = 1 ] || { echo "FAIL no-starve: a=$got_a b=$got_b expected 2/1"; exit 1; }
+echo "ok   tight budget never starves an active lane"
+
 [ -f "$tmp/notified" ] || { echo "FAIL: concurrency changes did not notify"; exit 1; }
 echo "ok   changes notify"
 
