@@ -14,19 +14,21 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 # Example:
 # SCANNER_CMD="claude -p 'Read the scanners/ directory and file up to 75 high-quality issues …'"
 
-# --- Dispatch (workers) ---
-MIN_WORKERS=1
-MAX_WORKERS=4
-POLL_SECS=30                         # how often the dispatcher looks for free slots / new issues
-BASE_BRANCH="main"                   # branch workers branch from and open PRs against
+# --- Dispatch (batch sessions) ---
+POLL_SECS=30                         # how often the dispatcher re-checks for ready issues
+BASE_BRANCH="main"                   # branch subagents branch from and open PRs against
 ISSUE_ORDER="oldest"                 # "oldest" or "newest" issues first
-AUTO_MERGE=false                     # true = worker merges green-CI PRs; false = leave for review
-# Command run per issue; gets ISSUE_NUMBER, GH_REPO, BASE_BRANCH, AUTO_MERGE in its environment.
-# See examples/worker.md for the full implement→PR→fix-CI→merge goal prompt.
-WORKER_CMD="echo 'no worker configured for issue #$ISSUE_NUMBER' >&2; exit 1"
+AUTO_MERGE=false                     # true = merge green-CI PRs; false = leave for review
+BATCH_SIZE=25                        # issues per batch session (small batches survive session limits)
+CONCURRENCY=3                        # subagents in parallel inside a batch session
+MIN_CONCURRENCY=1                    # pacer bounds
+MAX_CONCURRENCY=6
+# One batch session; orchestrates its own subagents. Gets BATCH_SIZE, CONCURRENCY,
+# GH_REPO, BASE_BRANCH, AUTO_MERGE, ISSUE_ORDER, READY_LABEL, CLAIM_LABEL in its env.
+BATCH_CMD="echo 'no batch command configured' >&2; exit 1"
 # Examples:
-# WORKER_CMD='claude -p "$(envsubst < examples/worker.md)" --dangerously-skip-permissions'
-# WORKER_CMD='codex exec "$(envsubst < examples/worker.md)"'
+# BATCH_CMD='claude -p "$(envsubst < examples/goal.md)" --dangerously-skip-permissions'
+# BATCH_CMD='codex exec "$(envsubst < examples/goal.md)"'
 
 # --- Pace (quota thermostat) ---
 # Command printing two numbers on one line: "<pct_of_quota_used 0-100> <seconds_until_reset>".
