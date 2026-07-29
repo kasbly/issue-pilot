@@ -5,50 +5,67 @@
 # --- Repo / queue ---
 GH_REPO="owner/repo"                 # the repo whose issues are the work queue
 READY_LABEL="status/approved"        # issues with this label are eligible for workers
-CLAIM_LABEL="in-pilot"               # dispatcher adds this when a worker picks an issue up
+CLAIM_LABEL="in-pilot"               # added when a lane picks an issue up
 
 # --- Refill (issue generation) ---
 REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
 # Command that generates new issues (your scanner pipeline). Runs from ISSUE_PILOT_HOME.
 SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
-# Example:
-# SCANNER_CMD="claude -p 'Read the scanners/ directory and file up to 75 high-quality issues …'"
+# Example: SCANNER_CMD='claude -p "$(cat examples/scanner.md)" --dangerously-skip-permissions'
 
-# --- Dispatch (batch sessions) ---
-POLL_SECS=30                         # how often the dispatcher re-checks for ready issues
+# --- Batches ---
+POLL_SECS=60                         # dispatcher poll interval
 BASE_BRANCH="main"                   # branch subagents branch from and open PRs against
 ISSUE_ORDER="oldest"                 # "oldest" or "newest" issues first
 AUTO_MERGE=false                     # true = merge green-CI PRs; false = leave for review
 BATCH_SIZE=25                        # issues per batch session (small batches survive session limits)
 #REPO_DIR="/path/to/shared-clone"    # shared base clone; subagents branch worktrees off it (default: <issue-pilot>/repo)
-CONCURRENCY=3                        # subagents in parallel inside a batch session
-MIN_CONCURRENCY=1                    # pacer bounds
-MAX_CONCURRENCY=6
-# One batch session; orchestrates its own subagents. Gets BATCH_SIZE, CONCURRENCY,
-# GH_REPO, BASE_BRANCH, AUTO_MERGE, ISSUE_ORDER, READY_LABEL, CLAIM_LABEL in its env.
-BATCH_CMD="echo 'no batch command configured' >&2; exit 1"
-# Examples:
-# BATCH_CMD='claude -p "$(envsubst < examples/goal.md)" --dangerously-skip-permissions'
-# BATCH_CMD='codex exec "$(envsubst < examples/goal.md)"'
-# Multiple Claude subscriptions? Identity lives in the config DIRECTORY, not in a
-# settings file — give each account its own dir (log in once per dir) and pick it
-# per command with CLAUDE_CONFIG_DIR:
-# BATCH_CMD='CLAUDE_CONFIG_DIR=$HOME/.claude-work claude -p "$(envsubst < examples/goal.md)" --dangerously-skip-permissions'
 
-# --- Pace (quota thermostat) ---
-# Command printing two numbers on one line: "<pct_of_quota_used 0-100> <seconds_until_reset>".
-# Leave empty to disable pacing (batches then run at constant CONCURRENCY).
-# bin/usage-claude.sh reads the official numbers Claude Code's /usage screen shows:
-# USAGE_CMD="bash bin/usage-claude.sh"
-USAGE_CMD=""
-#CLAUDE_CREDENTIALS="$HOME/.claude/.credentials.json"  # credentials of the account batches burn
+# --- Lanes: the accounts that implement issues ---
+# Each lane is one subscription running batch sessions. List ids in LANES, then set
+# per-lane vars LANE_<id>_*:
+#   LABEL         display name (shown in logs, status page, claim comments)
+#   MODE          always = run whenever ready issues exist, fixed concurrency
+#                 window = auto-activate near quota reset to drain leftover usage
+#                 off    = disabled
+#   CMD           batch command; receives CONCURRENCY, BATCH_SIZE, GH_REPO, BASE_BRANCH,
+#                 AUTO_MERGE, ISSUE_ORDER, SORT_DIR, READY_LABEL, CLAIM_LABEL, REPO_DIR,
+#                 LANE_NAME, LANE_SLUG in its environment
+#   CONCURRENCY   subagents per batch (always mode; window mode computes its own)
+#   CREDENTIALS   (window) that account's .claude/.credentials.json for usage reading
+#   USAGE_CMD     (window) override usage source; must print "<pct_used> <secs_to_reset>"
+#                 (default: bin/usage-claude.sh with CREDENTIALS)
+# Per-lane overrides of the window defaults below: LANE_<id>_WINDOW_DAYS,
+# LANE_<id>_WINDOW_MAX_PCT, LANE_<id>_MIN_CONCURRENCY, LANE_<id>_MAX_CONCURRENCY,
+# LANE_<id>_BURN_PCT_PER_WORKER_HOUR.
+LANES=""
+# Example — Codex grinding full-time, a Claude sub draining leftovers before reset:
+# LANES="codex main"
+# LANE_codex_LABEL="Codex"
+# LANE_codex_MODE="always"
+# LANE_codex_CONCURRENCY=3
+# LANE_codex_CMD='codex exec "$(envsubst < examples/goal.md)"'
+# LANE_main_LABEL="Claude main"
+# LANE_main_MODE="window"
+# LANE_main_CREDENTIALS="$HOME/.claude/.credentials.json"
+# LANE_main_CMD='claude -p "$(envsubst < examples/goal.md)" --dangerously-skip-permissions'
+
+# --- Window-mode defaults (drain leftover quota before it expires) ---
+WINDOW_DAYS=3                        # activate when the reset is closer than this
+WINDOW_MAX_PCT=50                    # ...and usage is still below this percent
+MIN_CONCURRENCY=1                    # floor while a window lane is active
+MAX_CONCURRENCY=6                    # ceiling per lane
+BURN_PCT_PER_WORKER_HOUR=2           # rough % of weekly quota one subagent burns per hour;
+                                     # the pacer re-reads real usage each tick, so this
+                                     # only needs to be in the right ballpark
+
+# --- Notifications ---
+# Runs whenever a lane's concurrency changes. Gets $MSG.
+NOTIFY_CMD=""
+# Example: NOTIFY_CMD='curl -s -d "$MSG" ntfy.sh/my-topic'
 
 # --- Status page (bin/status.sh + issue-pilot-web.service) ---
 # Accounts shown on the page: semicolon-separated "name|kind|path" entries.
-#   kind=claude → path is that account's .credentials.json (config dir = its dirname)
+#   kind=claude → path is that account's .credentials.json
 #   kind=codex  → path is the ~/.codex/sessions directory
 #STATUS_ACCOUNTS="Claude main|claude|$HOME/.claude/.credentials.json;Codex|codex|$HOME/.codex/sessions"
-PACE_TOLERANCE=10                    # % deviation from ideal burn line before scaling up/down
-# Optional: notified when actual usage drifts >2x tolerance from the ideal line. Gets $MSG.
-NOTIFY_CMD=""
-# Example: NOTIFY_CMD='curl -s -d "$MSG" ntfy.sh/my-topic'

@@ -48,12 +48,13 @@ done
 proc_rows=()
 while read -r pid etimes rest; do
   [ -n "$pid" ] || continue
-  acct=""
+  acct="" env_lane=""
+  env_lane=$(tr '\0' '\n' </proc/"$pid"/environ 2>/dev/null | sed -n 's/^LANE_NAME=//p')
   case "$rest" in
-    *"codex exec"*) acct=$CODEX_NAME ;;
+    *"codex exec"*) acct=${env_lane:-$CODEX_NAME} ;;
     *"claude -p"*)
       cfg=$(tr '\0' '\n' </proc/"$pid"/environ 2>/dev/null | sed -n 's/^CLAUDE_CONFIG_DIR=//p')
-      acct=${DIR2NAME[${cfg:-$HOME/.claude}]:-Claude} ;;
+      acct=${env_lane:-${DIR2NAME[${cfg:-$HOME/.claude}]:-Claude}} ;;
   esac
   [ -n "$acct" ] || continue
   proc_rows+=("$(jq -n --arg a "$acct" --argjson pid "$pid" --argjson up "$etimes" \
@@ -62,11 +63,31 @@ done < <(ps -u "$(id -un)" -o pid=,etimes=,args= | grep -E 'claude -p|codex exec
 
 dispatch=$(systemctl is-active issue-pilot-dispatch.service 2>/dev/null || true)
 claimed=$(gh issue list -R "$GH_REPO" --state open --label "$CLAIM_LABEL" --json number,title,url 2>/dev/null || echo '[]')
-prs=$(gh pr list -R "$GH_REPO" --author "@me" --limit 8 --json number,title,url,createdAt 2>/dev/null || echo '[]')
+all_prs=$(gh pr list -R "$GH_REPO" --author "@me" --state all --limit 100 --json number,title,url,createdAt,headRefName 2>/dev/null || echo '[]')
+
+# per-lane batch progress: PRs are attributed by their pilot-<lane>/ branch prefix
+lane_rows=()
+for id in ${LANES:-}; do
+  conc=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
+  started=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
+  lane_rows+=("$(jq -n --arg id "$id" --arg label "$(lane_get "$id" LABEL "$id")" \
+    --arg mode "$(lane_get "$id" MODE off)" --argjson conc "$conc" \
+    --argjson started "$started" --argjson target "${BATCH_SIZE:-0}" \
+    --argjson prs "$all_prs" '
+    {id:$id, label:$label, mode:$mode, concurrency:$conc,
+     batch_started:(if $started==0 then null else $started end),
+     batch_target:$target,
+     batch_done:([$prs[] | select((.headRefName|startswith("pilot-"+$id+"/"))
+                                  and (.createdAt|fromdateiso8601) >= $started)] | length),
+     total_done:([$prs[] | select(.headRefName|startswith("pilot-"+$id+"/"))] | length)}')")
+done
 
 join_json "${acc_rows[@]}" | jq \
   --argjson gen "$now" --arg dispatch "$dispatch" \
   --argjson workers "$(join_json "${proc_rows[@]}")" \
-  --argjson claimed "$claimed" --argjson prs "$prs" \
-  '{generated_at:$gen, dispatch:$dispatch, accounts:., workers:$workers, claimed:$claimed, recent_prs:$prs}' \
+  --argjson lanes "$(join_json "${lane_rows[@]}")" \
+  --argjson claimed "$claimed" \
+  --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
+  '{generated_at:$gen, dispatch:$dispatch, accounts:., lanes:$lanes, workers:$workers,
+    claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

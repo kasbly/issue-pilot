@@ -13,6 +13,9 @@ mkdir -p "$STATE_DIR"
 
 log() { echo "[$(date '+%F %T')] $*"; }
 
+# per-lane config lookup with fallback: lane_get <id> <KEY> [default]
+lane_get() { local v="LANE_${1}_${2}"; echo "${!v:-${3:-}}"; }
+
 # open issues that are ready and unclaimed, one number per line, ISSUE_ORDER first
 ready_issues() {
   local dir=asc

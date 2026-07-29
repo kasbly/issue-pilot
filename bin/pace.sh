@@ -1,37 +1,55 @@
 #!/usr/bin/env bash
-# pace: the thermostat. Compares quota actually used against the ideal straight-line
-# burn to the weekly reset, and nudges the batch subagent concurrency up or down.
+# pace: decides each lane's batch concurrency and writes it to state/lane-<id>.concurrency.
+#   always → the lane's fixed CONCURRENCY, unconditionally
+#   window → 0 until the account is close to its quota reset AND still underused,
+#            then enough concurrency to drain the leftover quota by the reset
+#   off    → 0
 . "$(dirname "$0")/lib.sh"
-cd "$ISSUE_PILOT_HOME" # so USAGE_CMD can use relative paths like bin/usage-ccusage.sh
+cd "$ISSUE_PILOT_HOME"
 
-WEEK_SECS=604800
+for id in ${LANES:-}; do
+  label=$(lane_get "$id" LABEL "$id")
+  mode=$(lane_get "$id" MODE off)
+  out="$STATE_DIR/lane-$id.concurrency"
+  prev=$(cat "$out" 2>/dev/null || echo 0)
+  target=0
 
-if [ -z "${USAGE_CMD:-}" ]; then
-  echo "$CONCURRENCY" >"$STATE_DIR/concurrency"
-  log "no USAGE_CMD configured — pinned concurrency to CONCURRENCY=$CONCURRENCY"
-  exit 0
-fi
+  case "$mode" in
+    always)
+      target=$(lane_get "$id" CONCURRENCY 3)
+      log "[$label] always-on concurrency=$target"
+      ;;
+    window)
+      ucmd=$(lane_get "$id" USAGE_CMD)
+      [ -n "$ucmd" ] || ucmd="CLAUDE_CREDENTIALS='$(lane_get "$id" CREDENTIALS)' bash bin/usage-claude.sh"
+      if read -r pct secs < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${secs:-}" ]; then
+        wdays=$(lane_get "$id" WINDOW_DAYS "${WINDOW_DAYS:-3}")
+        wmax=$(lane_get "$id" WINDOW_MAX_PCT "${WINDOW_MAX_PCT:-50}")
+        if awk -v s="$secs" -v w="$wdays" -v p="$pct" -v m="$wmax" 'BEGIN { exit !(s <= w*86400 && p < m) }'; then
+          burn=$(lane_get "$id" BURN_PCT_PER_WORKER_HOUR "${BURN_PCT_PER_WORKER_HOUR:-2}")
+          hi=$(lane_get "$id" MAX_CONCURRENCY "${MAX_CONCURRENCY:-6}")
+          lo=$(lane_get "$id" MIN_CONCURRENCY "${MIN_CONCURRENCY:-1}")
+          # workers needed to burn the remaining % by the reset; re-computed from real
+          # usage every tick, so a wrong BURN constant self-corrects
+          target=$(awk -v p="$pct" -v s="$secs" -v b="$burn" -v hi="$hi" -v lo="$lo" \
+            'BEGIN { h = s/3600; if (h < 1) h = 1;
+                     t = int((100 - p) / (h * b) + 0.999);
+                     if (t < lo) t = lo; if (t > hi) t = hi; print t }')
+        fi
+        state=idle; [ "$target" -gt 0 ] && state=ACTIVE
+        log "[$label] used=${pct}% resets_in=$((secs / 3600))h window=$state concurrency=$target"
+      else
+        target=$prev
+        log "[$label] usage unavailable — keeping concurrency=$prev"
+      fi
+      ;;
+    off)
+      log "[$label] lane off"
+      ;;
+  esac
 
-read -r used secs_left < <(bash -c "$USAGE_CMD")
-expected=$(awk -v s="$secs_left" -v w="$WEEK_SECS" 'BEGIN { printf "%.1f", 100 * (w - s) / w }')
-behind=$(awk -v e="$expected" -v u="$used" 'BEGIN { printf "%.1f", e - u }')
-
-current=$(cat "$STATE_DIR/concurrency" 2>/dev/null || echo "$CONCURRENCY")
-target=$current
-# ponytail: one-step nudges, not proportional control — the pacer runs often enough
-# that ±1 per tick converges, and it can't overshoot the quota by Tuesday
-if awk -v b="$behind" -v t="$PACE_TOLERANCE" 'BEGIN { exit !(b > t) }'; then
-  target=$((current + 1))
-elif awk -v b="$behind" -v t="$PACE_TOLERANCE" 'BEGIN { exit !(b < -t) }'; then
-  target=$((current - 1))
-fi
-[ "$target" -gt "$MAX_CONCURRENCY" ] && target=$MAX_CONCURRENCY
-[ "$target" -lt "$MIN_CONCURRENCY" ] && target=$MIN_CONCURRENCY
-echo "$target" >"$STATE_DIR/concurrency"
-
-label="${ACCOUNT_LABEL:+[$ACCOUNT_LABEL] }"
-log "${label}used=${used}% expected=${expected}% drift=${behind}% concurrency: $current -> $target"
-
-if [ -n "${NOTIFY_CMD:-}" ] && awk -v b="$behind" -v t="$PACE_TOLERANCE" 'BEGIN { exit !(b > 2*t || b < -2*t) }'; then
-  MSG="issue-pilot: ${label}usage ${used}% vs ideal ${expected}% (drift ${behind}%), concurrency=$target" bash -c "$NOTIFY_CMD" || true
-fi
+  echo "$target" >"$out"
+  if [ "$target" != "$prev" ] && [ -n "${NOTIFY_CMD:-}" ]; then
+    MSG="issue-pilot: lane '$label' concurrency $prev -> $target" bash -c "$NOTIFY_CMD" || true
+  fi
+done

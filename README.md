@@ -24,8 +24,8 @@ GitHub Issues **is** the queue, labels **are** the state machine.
 | Loop | Unit | What it does |
 |---|---|---|
 | **refill** | `issue-pilot-refill.timer` (hourly) | Counts open issues with `READY_LABEL`. Below `REFILL_THRESHOLD`? Runs your `SCANNER_CMD` to generate more. |
-| **dispatch** | `issue-pilot-dispatch.service` (always on) | Runs one batch session at a time (`BATCH_CMD`): an agent that works through up to `BATCH_SIZE` ready issues, spawning subagents `CONCURRENCY` at a time. Issues are claimed with `CLAIM_LABEL`, un-claimed on failure so they re-queue. When a batch ends and ready issues remain, the next batch starts. |
-| **pace** | `issue-pilot-pace.timer` (every 2 h) | Asks `USAGE_CMD` how much quota is spent and how long until reset, compares against the straight-line ideal, nudges `CONCURRENCY` up or down by one within `[MIN_CONCURRENCY, MAX_CONCURRENCY]`. Applies from the next batch. |
+| **dispatch** | `issue-pilot-dispatch.service` (always on) | Runs one batch session per **active lane**. Each batch works through up to `BATCH_SIZE` ready issues, spawning subagents at the lane's concurrency. Issues are claimed with `CLAIM_LABEL` plus a "claimed by" comment (the tie-breaker between parallel lanes), un-claimed on failure so they re-queue. |
+| **pace** | `issue-pilot-pace.timer` (every 2 h) | Sets each lane's concurrency in `state/lane-<id>.concurrency`: `always` lanes get their fixed number; `window` lanes activate only near their quota reset (see below). |
 
 ## Install
 
@@ -54,18 +54,18 @@ instead of act. Keep them that way when you adapt them.
   `claude -p "$(cat examples/scanner.md)"`. Wave-size tip: many smaller waves beat one
   giant dump — quality stays high and usage spreads across the week, which is exactly
   what the pacer wants.
-- **`BATCH_CMD`** — one orchestrator session per batch. Start from
-  [examples/goal.md](examples/goal.md): it claims ready issues (`ISSUE_ORDER` picks
-  oldest- or newest-first), fans out subagents `CONCURRENCY` at a time, and each
-  subagent implements one issue end to end — fresh checkout, branch off `BASE_BRANCH`,
-  PR, watch CI and fix failures (max 3 rounds), then merge if `AUTO_MERGE=true` or
-  leave for review. Session output lands in `state/batch.log`.
-- **`USAGE_CMD`** — prints `<percent_of_weekly_quota_used> <seconds_until_reset>`.
-  For Claude subscriptions, [bin/usage-claude.sh](bin/usage-claude.sh) reads the exact
-  numbers the `/usage` screen shows (via the OAuth usage endpoint and the account's
-  local credentials file) — no calibration needed. For other providers, wrap whatever
-  they expose. Leave empty to disable pacing; batches then run at a constant
-  `CONCURRENCY`.
+- **Lanes** — one per subscription that implements issues, defined by `LANES` +
+  `LANE_<id>_*` vars (label, mode, command, limits — everything overridable per lane).
+  Each lane's `CMD` is an orchestrator session built from [examples/goal.md](examples/goal.md):
+  it claims ready issues (`ISSUE_ORDER` picks oldest- or newest-first), fans out
+  subagents, and each subagent implements one issue end to end — worktree off
+  `origin/$BASE_BRANCH`, PR from a `pilot-<lane>/issue-N` branch, watch CI and fix
+  failures (max 3 rounds), then merge if `AUTO_MERGE=true` or leave for review.
+  Session output lands in `state/batch-<lane>.log`.
+- **Usage reading** (window lanes) — [bin/usage-claude.sh](bin/usage-claude.sh) reads
+  the exact numbers Claude Code's `/usage` screen shows (OAuth usage endpoint + the
+  lane's `CREDENTIALS` file) — no calibration needed. Other providers: set
+  `LANE_<id>_USAGE_CMD` to anything printing `<pct_used> <secs_until_reset>`.
 
 ## /goal — the same thing, interactively
 
@@ -80,17 +80,32 @@ Count, order, base branch, merge policy, concurrency, and label filters are all
 parsed from the request; anything unstated falls back to sane defaults (10 issues,
 oldest first, repo default branch, no auto-merge, 3 subagents).
 
-## Pacing behavior
+## Lane modes — the pacing model
 
-The pacer is deliberately dumb: ±1 concurrency per tick, clamped to
-`[MIN_CONCURRENCY, MAX_CONCURRENCY]`, only when actual usage drifts more than
-`PACE_TOLERANCE` percent from the ideal line. A running batch keeps the concurrency
-it started with; nudges apply from the next batch. Drift beyond 2× tolerance fires
-`NOTIFY_CMD` (point it at ntfy/Telegram/Slack) so you hear about it instead of
-discovering it at reset time.
+- **`always`** — the workhorse subscription (typically the one that resets often and
+  exists to be burned). Runs whenever ready issues exist, at a fixed `CONCURRENCY`.
+  No pacing: pacing a workhorse only slows it down.
+- **`window`** — the "never waste quota" drain valve, for subscriptions you mainly
+  use interactively. The lane stays **off** most of the week, then activates when
+  the account's reset is `≤ WINDOW_DAYS` away **and** usage is `< WINDOW_MAX_PCT` —
+  i.e. quota is about to expire unused. While active, concurrency is recomputed each
+  tick as `(100 − used%) / (hours_left × BURN_PCT_PER_WORKER_HOUR)`, clamped to
+  `[MIN_CONCURRENCY, MAX_CONCURRENCY]` — enough workers to land near 100% at the
+  reset. After the reset the account leaves the window and the lane switches itself
+  off, leaving the fresh week untouched.
+- **`off`** — parked.
 
-Start with `NOTIFY_CMD` only and a fixed concurrency; turn on auto-scaling once you
-trust your `USAGE_CMD` numbers — provider quota reporting is usually approximate.
+Every knob has a global default and a per-lane `LANE_<id>_…` override. Concurrency
+changes fire `NOTIFY_CMD` (point it at ntfy/Telegram/Slack). A running batch keeps
+the concurrency it started with; changes apply from the next batch.
+
+## Status page
+
+`issue-pilot-web.service` serves `web/` (bind it to a private/VPN interface — it
+exposes usage data), and `issue-pilot-status.timer` refreshes `web/status.json` every
+5 minutes: every account's used %, reset countdown, and pace verdict; each lane's
+state and current-batch progress (picked / done / left); live worker sessions mapped
+to the account burning them; claimed issues and recent PRs.
 
 ## Notes
 

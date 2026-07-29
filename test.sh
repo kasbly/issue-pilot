@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Self-check for the pacer math — the only branchy logic in the repo.
+# Self-check for the lane pacer — the only branchy logic in the repo.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -8,36 +8,56 @@ trap 'rm -rf "$tmp"' EXIT
 export ISSUE_PILOT_HOME="$tmp"
 export ISSUE_PILOT_CONF="$tmp/issue-pilot.conf"
 
-make_conf() { # $1 = USAGE_CMD output ("pct secs_left"), $2 = starting concurrency
+make_conf() { # $1 = lane MODE, $2 = extra conf lines, $3 = seed concurrency (optional)
   cat >"$ISSUE_PILOT_CONF" <<EOF
 GH_REPO=x/y; READY_LABEL=r; CLAIM_LABEL=c
-REFILL_THRESHOLD=10; SCANNER_CMD=true
-CONCURRENCY=3; MIN_CONCURRENCY=1; MAX_CONCURRENCY=4; POLL_SECS=1; BATCH_SIZE=25; BATCH_CMD=true
-USAGE_CMD="echo $1"; PACE_TOLERANCE=10; NOTIFY_CMD="cat >> $tmp/notified"
+REFILL_THRESHOLD=10; SCANNER_CMD=true; POLL_SECS=1; BATCH_SIZE=25
+LANES="t"
+LANE_t_LABEL="T"; LANE_t_MODE="$1"; LANE_t_CMD=true
+WINDOW_DAYS=3; WINDOW_MAX_PCT=50; MIN_CONCURRENCY=1; MAX_CONCURRENCY=6
+BURN_PCT_PER_WORKER_HOUR=2
+NOTIFY_CMD="cat >> $tmp/notified"
+$2
 EOF
-  mkdir -p "$tmp/state" && echo "$2" >"$tmp/state/concurrency"
+  mkdir -p "$tmp/state"
+  [ -n "${3:-}" ] && echo "$3" >"$tmp/state/lane-t.concurrency" || rm -f "$tmp/state/lane-t.concurrency"
 }
 
 check() { # $1 = name, $2 = expected concurrency
   bash bin/pace.sh >/dev/null
-  got=$(cat "$tmp/state/concurrency")
+  got=$(cat "$tmp/state/lane-t.concurrency")
   [ "$got" = "$2" ] || { echo "FAIL $1: concurrency=$got expected=$2"; exit 1; }
   echo "ok   $1"
 }
 
-# halfway through the week (302400s left → ideal 50%)
-make_conf "20 302400" 2; check "behind pace scales up" 3
-make_conf "80 302400" 2; check "ahead of pace scales down" 1
-make_conf "50 302400" 2; check "on pace holds steady" 2
-make_conf "10 302400" 4; check "clamped at MAX_CONCURRENCY" 4
-make_conf "95 302400" 1; check "clamped at MIN_CONCURRENCY" 1
-make_conf "5 302400" 2; check "big drift still steps by one" 3
-[ -f "$tmp/notified" ] || { echo "FAIL: >2x-tolerance drift did not notify"; exit 1; }
-echo "ok   big drift notifies"
+make_conf always 'LANE_t_CONCURRENCY=4'
+check "always mode uses fixed concurrency" 4
 
-# no USAGE_CMD → pinned to configured CONCURRENCY
-make_conf "0 0" 1
-sed -i.bak 's/^USAGE_CMD=.*/USAGE_CMD=""/' "$ISSUE_PILOT_CONF"
-check "no USAGE_CMD pins to CONCURRENCY" 3
+make_conf off ''
+check "off mode writes 0" 0
+
+make_conf window 'LANE_t_USAGE_CMD="echo 40 432000"'          # resets in 5d — outside window
+check "outside window stays 0" 0
+
+make_conf window 'LANE_t_USAGE_CMD="echo 60 129600"'          # 60% used — over threshold
+check "over usage threshold stays 0" 0
+
+make_conf window 'LANE_t_USAGE_CMD="echo 40 129600"'          # 36h left: 60%/(36h*2) → 1
+check "eligible: light leftover gets 1 worker" 1
+
+make_conf window 'LANE_t_USAGE_CMD="echo 10 86400"'           # 24h left: 90%/(24h*2) → 2
+check "eligible: heavy leftover scales up" 2
+
+make_conf window 'LANE_t_USAGE_CMD="echo 0 21600" BURN_PCT_PER_WORKER_HOUR=1'  # 6h left: 100/6 → clamp
+check "clamped at MAX_CONCURRENCY" 6
+
+make_conf window 'LANE_t_USAGE_CMD="echo 45 255600" LANE_t_MIN_CONCURRENCY=2'  # 71h left, tiny need
+check "clamped at per-lane MIN_CONCURRENCY" 2
+
+make_conf window 'LANE_t_USAGE_CMD="false"' 5
+check "usage unavailable keeps previous" 5
+
+[ -f "$tmp/notified" ] || { echo "FAIL: concurrency changes did not notify"; exit 1; }
+echo "ok   changes notify"
 
 echo "all checks passed"

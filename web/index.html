@@ -32,6 +32,7 @@
 <h1>issue-pilot <span id="dispatch" class="pill"></span></h1>
 <div id="meta"></div>
 <div class="cards" id="accounts"></div>
+<h2>Lanes</h2><div id="lanes"></div>
 <h2>Working now</h2><div id="workers"></div>
 <h2>Claimed issues</h2><div id="claimed"></div>
 <h2>Recent PRs</h2><div id="prs"></div>
@@ -76,6 +77,20 @@ async function refresh() {
       <div class="drift ${cls}">${driftTxt}${esc(stale)}</div>
     </div>`;
   }).join("");
+
+  const lanes = s.lanes || [];
+  document.getElementById("lanes").innerHTML = lanes.length
+    ? "<table><tr><th>lane</th><th>mode</th><th>state</th><th>current batch</th><th>total PRs</th></tr>" +
+      lanes.map(l => {
+        const on = l.concurrency > 0;
+        const batch = (on && l.batch_started)
+          ? `${l.batch_done} done / ${Math.max(l.batch_target - l.batch_done, 0)} left of ${l.batch_target} picked · running ${fmtDur(now - l.batch_started)}`
+          : "—";
+        return `<tr><td>${esc(l.label)}</td><td>${esc(l.mode)}</td>
+          <td class="${on ? "ok" : ""}">${on ? `on · ${l.concurrency} subagents` : "off"}</td>
+          <td>${batch}</td><td>${l.total_done}</td></tr>`;
+      }).join("") + "</table>"
+    : `<div class="empty">no lanes configured</div>`;
 
   const w = s.workers || [];
   document.getElementById("workers").innerHTML = w.length

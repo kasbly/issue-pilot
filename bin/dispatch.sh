@@ -1,28 +1,43 @@
 #!/usr/bin/env bash
-# dispatch: long-running loop that runs one batch session at a time.
-# The batch session (BATCH_CMD, see examples/goal.md) orchestrates its own subagents,
-# CONCURRENCY at a time. pace.sh adjusts state/concurrency between batches.
+# dispatch: long-running loop, one batch session per active lane. A lane is active
+# when pace.sh wrote concurrency > 0 to state/lane-<id>.concurrency. Each batch
+# orchestrates its own subagents (see examples/goal.md); when it ends and ready
+# issues remain, the next one starts.
 . "$(dirname "$0")/lib.sh"
+cd "$ISSUE_PILOT_HOME" # so lane CMDs can reference examples/ by relative path
 
-cd "$ISSUE_PILOT_HOME" # so BATCH_CMD can reference examples/ by relative path
-log "dispatcher up (repo=$GH_REPO, batch_size=$BATCH_SIZE)"
+declare -A lane_pid=()
+log "dispatcher up (repo=$GH_REPO, lanes: ${LANES:-none})"
 
 while true; do
   . "$ISSUE_PILOT_CONF" # hot-reload: conf edits apply from the next batch, no restart
-  if [ -z "$(ready_issues | head -1)" ]; then
-    sleep "$POLL_SECS"
-    continue
+
+  for id in "${!lane_pid[@]}"; do
+    kill -0 "${lane_pid[$id]}" 2>/dev/null && continue
+    wait "${lane_pid[$id]}" && st=0 || st=$?
+    log "lane $id: batch finished status=$st"
+    unset "lane_pid[$id]"
+  done
+
+  if [ -n "$(ready_issues | head -1)" ]; then
+    sort_dir=asc; [ "${ISSUE_ORDER:-oldest}" = "newest" ] && sort_dir=desc
+    for id in ${LANES:-}; do
+      [ -n "${lane_pid[$id]:-}" ] && continue
+      c=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
+      [ "$c" -gt 0 ] || continue
+      label=$(lane_get "$id" LABEL "$id")
+      log "lane $id: starting batch (concurrency=$c)"
+      date +%s >"$STATE_DIR/lane-$id.batch-started"
+      CONCURRENCY=$c BATCH_SIZE=$BATCH_SIZE GH_REPO=$GH_REPO \
+        BASE_BRANCH="${BASE_BRANCH:-main}" AUTO_MERGE="${AUTO_MERGE:-false}" \
+        ISSUE_ORDER="${ISSUE_ORDER:-oldest}" SORT_DIR=$sort_dir \
+        READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL \
+        REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
+        LANE_NAME="$label" LANE_SLUG="pilot-$id" \
+        bash -c "$(lane_get "$id" CMD 'echo "lane has no CMD configured" >&2; exit 1')" \
+        >>"$STATE_DIR/batch-$id.log" 2>&1 &
+      lane_pid[$id]=$!
+    done
   fi
-  # ponytail: concurrency is read per-batch, not live — a running session keeps the
-  # concurrency it started with; the pacer's nudge applies from the next batch on
-  concurrency=$(cat "$STATE_DIR/concurrency" 2>/dev/null || echo "$CONCURRENCY")
-  sort_dir=asc; [ "${ISSUE_ORDER:-oldest}" = "newest" ] && sort_dir=desc
-  log "starting batch session (concurrency=$concurrency)"
-  CONCURRENCY=$concurrency BATCH_SIZE=$BATCH_SIZE GH_REPO=$GH_REPO \
-    BASE_BRANCH="${BASE_BRANCH:-main}" AUTO_MERGE="${AUTO_MERGE:-false}" \
-    ISSUE_ORDER="${ISSUE_ORDER:-oldest}" SORT_DIR=$sort_dir READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL \
-    REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
-    bash -c "$BATCH_CMD" >>"$STATE_DIR/batch.log" 2>&1 \
-    && log "batch session finished" || log "batch session exited non-zero"
   sleep "$POLL_SECS"
 done
