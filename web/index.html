@@ -70,6 +70,8 @@ async function refresh() {
       drift > 10 ? `${drift.toFixed(0)}% behind pace — quota will be left over` :
       drift < -10 ? `${(-drift).toFixed(0)}% ahead of pace` : "on pace";
     const stale = a.kind === "codex" && a.stale_secs > 3600 ? ` · snapshot ${fmtDur(a.stale_secs)} old` : "";
+    const h5 = a.five_hour_pct != null
+      ? ` · 5h window ${a.five_hour_pct.toFixed(0)}%${a.five_hour_pct >= 85 ? " ⚠" : ""}` : "";
     return `<div class="card">
       <span class="name">${esc(a.name)}</span><span class="kind">${esc(a.kind)}</span>
       <div class="big">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : "–"}</div>
@@ -79,7 +81,7 @@ async function refresh() {
       </div>
       <div class="row"><span>resets in ${fmtDur(secs)}</span>
         <span>${a.resets_at ? new Date(a.resets_at*1000).toLocaleString(undefined,{weekday:"short",hour:"2-digit",minute:"2-digit"}) : ""}</span></div>
-      <div class="drift ${cls}">${driftTxt}${esc(stale)}</div>
+      <div class="drift ${cls}">${driftTxt}${esc(h5)}${esc(stale)}</div>
     </div>`;
   }).join("");
 

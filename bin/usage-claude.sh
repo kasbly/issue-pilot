@@ -19,4 +19,14 @@ resets=$(jq -r '.seven_day.resets_at // empty' <<<"$resp")
 
 secs=$(( $(date -d "$resets" +%s) - $(date +%s) ))
 [ "$secs" -gt 0 ] || secs=0
-echo "$pct $secs"
+
+# optional trailing pair: the 5-hour session window (pace.sh throttles on it)
+h5pct=$(jq -r '.five_hour.utilization // empty' <<<"$resp")
+h5resets=$(jq -r '.five_hour.resets_at // empty' <<<"$resp")
+if [ -n "$h5pct" ] && [ -n "$h5resets" ]; then
+  h5secs=$(( $(date -d "$h5resets" +%s) - $(date +%s) ))
+  [ "$h5secs" -gt 0 ] || h5secs=0
+  echo "$pct $secs $h5pct $h5secs"
+else
+  echo "$pct $secs"
+fi

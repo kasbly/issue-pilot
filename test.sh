@@ -59,6 +59,12 @@ check "clamped at per-lane MIN_CONCURRENCY" 2
 make_conf window 'LANE_t_USAGE_CMD="false"' 5
 check "usage unavailable keeps previous" 5
 
+make_conf window 'LANE_t_USAGE_CMD="echo 10 86400 95 1200" FIVE_HOUR_THROTTLE_PCT=85'
+check "hot 5h window throttles to cap" 1
+
+make_conf window 'LANE_t_USAGE_CMD="echo 10 86400 50 1200" FIVE_HOUR_THROTTLE_PCT=85'
+check "cool 5h window leaves target alone" 2
+
 make_conf always ''
 check "always mode defaults to DEFAULT_CONCURRENCY" 3
 

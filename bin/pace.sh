@@ -35,7 +35,7 @@ for id in ${LANES:-}; do
     window)
       ucmd=$(lane_get "$id" USAGE_CMD)
       [ -n "$ucmd" ] || ucmd="CLAUDE_CREDENTIALS='$(lane_get "$id" CREDENTIALS)' bash bin/usage-claude.sh"
-      if read -r pct secs < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${secs:-}" ]; then
+      if read -r pct secs h5pct h5secs < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${secs:-}" ]; then
         wdays=$(lane_get "$id" WINDOW_DAYS "${WINDOW_DAYS:-3}")
         wmax=$(lane_get "$id" WINDOW_MAX_PCT "${WINDOW_MAX_PCT:-50}")
         if awk -v s="$secs" -v w="$wdays" -v p="$pct" -v m="$wmax" 'BEGIN { exit !(s <= w*86400 && p < m) }'; then
@@ -48,6 +48,15 @@ for id in ${LANES:-}; do
             'BEGIN { h = s/3600; if (h < 1) h = 1;
                      t = int((100 - p) / (h * b) + 0.999);
                      if (t < lo) t = lo; if (t > hi) t = hi; print t }')
+        fi
+        # the weekly window is the goal, but the 5-hour session window is the wall:
+        # when it's nearly spent, back off instead of slamming into rate limits
+        h5cap=$(lane_get "$id" FIVE_HOUR_THROTTLE_CAP "${FIVE_HOUR_THROTTLE_CAP:-1}")
+        h5max=$(lane_get "$id" FIVE_HOUR_THROTTLE_PCT "${FIVE_HOUR_THROTTLE_PCT:-85}")
+        if [ -n "${h5pct:-}" ] && [ "$target" -gt "$h5cap" ] && \
+           awk -v p="$h5pct" -v m="$h5max" 'BEGIN { exit !(p >= m) }'; then
+          log "[$label] 5h window at ${h5pct}% (resets in $(( ${h5secs:-0} / 60 ))m) — throttling $target -> $h5cap"
+          target=$h5cap
         fi
         state=idle; [ "$target" -gt 0 ] && state=ACTIVE
         log "[$label] used=${pct}% resets_in=$((secs / 3600))h window=$state concurrency=$target"

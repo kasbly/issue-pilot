@@ -15,7 +15,7 @@ CODEX_NAME="Codex"
 IFS=';' read -ra ACCTS <<<"${STATUS_ACCOUNTS:-}"
 for a in "${ACCTS[@]}"; do
   IFS='|' read -r name kind path <<<"$a"
-  used="" resets=0 stale=0
+  used="" resets=0 stale=0 h5=""
   if [ "$kind" = "claude" ]; then
     DIR2NAME[$(dirname "$path")]=$name
     tok=$(jq -r '.claudeAiOauth.accessToken // empty' "$path" 2>/dev/null)
@@ -25,6 +25,7 @@ for a in "${ACCTS[@]}"; do
       used=$(jq -r '.seven_day.utilization // empty' <<<"$resp")
       iso=$(jq -r '.seven_day.resets_at // empty' <<<"$resp")
       [ -n "$iso" ] && resets=$(date -d "$iso" +%s)
+      h5=$(jq -r '.five_hour.utilization // empty' <<<"$resp")
     fi
   else
     CODEX_NAME=$name
@@ -38,10 +39,11 @@ for a in "${ACCTS[@]}"; do
     fi
   fi
   acc_rows+=("$(jq -n --arg name "$name" --arg kind "$kind" --arg used "${used:-}" \
-    --argjson resets "${resets:-0}" --argjson stale "${stale:-0}" \
+    --argjson resets "${resets:-0}" --argjson stale "${stale:-0}" --arg h5 "${h5:-}" \
     '{name:$name, kind:$kind,
       used_pct:(if $used=="" then null else ($used|tonumber) end),
       resets_at:(if $resets==0 then null else $resets end),
+      five_hour_pct:(if $h5=="" then null else ($h5|tonumber) end),
       stale_secs:$stale}')")
 done
 

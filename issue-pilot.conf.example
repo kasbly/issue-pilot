@@ -75,6 +75,9 @@ MAX_CONCURRENCY=6                    # ceiling per lane
 BURN_PCT_PER_WORKER_HOUR=2           # rough % of weekly quota one subagent burns per hour;
                                      # the pacer re-reads real usage each tick, so this
                                      # only needs to be in the right ballpark
+FIVE_HOUR_THROTTLE_PCT=85            # when the account's 5-hour session window passes this…
+FIVE_HOUR_THROTTLE_CAP=1             # …cap the lane here until it resets (Claude subscriptions
+                                     # have BOTH a weekly and a 5-hour limit)
 
 # --- Notifications ---
 # Runs whenever a lane's concurrency changes. Gets $MSG.
