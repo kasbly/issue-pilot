@@ -16,7 +16,7 @@ LANES="t"
 LANE_t_LABEL="T"; LANE_t_MODE="$1"; LANE_t_CMD=true
 WINDOW_DAYS=3; WINDOW_MAX_PCT=50; MIN_CONCURRENCY=1; MAX_CONCURRENCY=6
 BURN_PCT_PER_WORKER_HOUR=2
-DEFAULT_CONCURRENCY=3; CORES_PER_WORKER=2; MEM_MB_PER_WORKER=3000
+DEFAULT_CONCURRENCY=3; CORES_PER_WORKER=2; MEM_MB_PER_WORKER=3000; RESOURCE_MIN_BUDGET=1
 RESOURCE_PROBE_CMD='echo "32 0 64000"'
 NOTIFY_CMD="cat >> $tmp/notified"
 $2
@@ -67,6 +67,9 @@ check "cpu load caps concurrency" 1
 
 make_conf always 'LANE_t_CONCURRENCY=4 RESOURCE_PROBE_CMD="echo 32 0 4000"'   # 4000/3000 → 1 slot
 check "low memory caps concurrency" 1
+
+make_conf always 'LANE_t_CONCURRENCY=4 RESOURCE_PROBE_CMD="echo 8 20 64000" RESOURCE_MIN_BUDGET=3'  # overloaded box
+check "RESOURCE_MIN_BUDGET floors the budget" 3
 
 # shared budget: (16-8)/2 = 4 slots for two lanes wanting 3 each → 3 then 1
 cat >"$ISSUE_PILOT_CONF" <<EOF

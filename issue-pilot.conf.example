@@ -57,10 +57,14 @@ LANES=""
 # --- Dynamic concurrency: server resource budget ---
 # Each pace tick computes how many workers the box can afford — min of
 # (cores − load5) / CORES_PER_WORKER and mem_available / MEM_MB_PER_WORKER — and
-# caps every lane's concurrency by what's left of that budget (allocated in LANES order).
+# caps every lane's concurrency by what's left of that budget. The budget is
+# allocated in LANES order: put deadline-critical window lanes FIRST so an
+# overloaded box starves the always-on workhorse before the expiring quota.
 DEFAULT_CONCURRENCY=3                # always-mode lanes without their own CONCURRENCY
-CORES_PER_WORKER=2                   # cores one worker (agent + builds/tests) roughly needs
+CORES_PER_WORKER=2                   # cores one worker (agent + builds/tests) roughly needs;
+                                     # agents are mostly API-bound — use 1 on a busy shared box
 MEM_MB_PER_WORKER=3000               # memory one worker roughly needs
+RESOURCE_MIN_BUDGET=3                # never squeeze the total below this ("the default is 3")
 #RESOURCE_PROBE_CMD='echo "16 2.5 48000"'  # override "<cores> <load5> <mem_avail_mb>" (tests, non-Linux)
 
 # --- Window-mode defaults (drain leftover quota before it expires) ---

@@ -13,8 +13,9 @@ probe="${RESOURCE_PROBE_CMD:-echo \"\$(nproc) \$(awk '{print \$2}' /proc/loadavg
 read -r cores load5 mem_mb < <(bash -c "$probe")
 budget=$(awk -v c="$cores" -v l="$load5" -v m="$mem_mb" \
   -v cpw="${CORES_PER_WORKER:-2}" -v mpw="${MEM_MB_PER_WORKER:-3000}" \
+  -v floor="${RESOURCE_MIN_BUDGET:-3}" \
   'BEGIN { cpu = int((c - l) / cpw); mem = int(m / mpw);
-           b = (cpu < mem) ? cpu : mem; if (b < 1) b = 1; print b }')
+           b = (cpu < mem) ? cpu : mem; if (b < floor) b = floor; print b }')
 echo "$budget $load5 $cores $mem_mb" >"$STATE_DIR/resource-budget"
 log "resource budget: $budget workers (load ${load5}/${cores} cores, ${mem_mb}MB avail)"
 remaining=$budget
