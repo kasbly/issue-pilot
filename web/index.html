@@ -37,6 +37,7 @@
 <div class="cards" id="queue"></div>
 <div id="refill" class="drift" style="margin-top:8px"></div>
 <h2>Lanes</h2><div id="lanes"></div>
+<div id="resources" class="drift" style="margin-top:8px"></div>
 <h2>Working now</h2><div id="workers"></div>
 <h2>Claimed issues</h2><div id="claimed"></div>
 <h2>Recent PRs</h2><div id="prs"></div>
@@ -110,6 +111,11 @@ async function refresh() {
           <td>${batch}</td><td>${l.total_done}</td></tr>`;
       }).join("") + "</table>"
     : `<div class="empty">no lanes configured</div>`;
+
+  const res = s.resources;
+  document.getElementById("resources").textContent = (res && res.budget > 0)
+    ? `server resource budget: ${res.budget} workers (load ${res.load5} of ${res.cores} cores, ${(res.mem_mb/1024).toFixed(0)} GB free) — lanes are capped by what's left of this budget`
+    : "";
 
   const w = s.workers || [];
   document.getElementById("workers").innerHTML = w.length

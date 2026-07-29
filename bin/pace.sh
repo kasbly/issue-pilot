@@ -7,6 +7,18 @@
 . "$(dirname "$0")/lib.sh"
 cd "$ISSUE_PILOT_HOME"
 
+# Server resource budget: how many workers the box can afford right now, shared by
+# all lanes (allocated in LANES order). Probe prints "<cores> <load5> <mem_avail_mb>".
+probe="${RESOURCE_PROBE_CMD:-echo \"\$(nproc) \$(awk '{print \$2}' /proc/loadavg) \$(awk '/MemAvailable/{print int(\$2/1024)}' /proc/meminfo)\"}"
+read -r cores load5 mem_mb < <(bash -c "$probe")
+budget=$(awk -v c="$cores" -v l="$load5" -v m="$mem_mb" \
+  -v cpw="${CORES_PER_WORKER:-2}" -v mpw="${MEM_MB_PER_WORKER:-3000}" \
+  'BEGIN { cpu = int((c - l) / cpw); mem = int(m / mpw);
+           b = (cpu < mem) ? cpu : mem; if (b < 1) b = 1; print b }')
+echo "$budget $load5 $cores $mem_mb" >"$STATE_DIR/resource-budget"
+log "resource budget: $budget workers (load ${load5}/${cores} cores, ${mem_mb}MB avail)"
+remaining=$budget
+
 for id in ${LANES:-}; do
   label=$(lane_get "$id" LABEL "$id")
   mode=$(lane_get "$id" MODE off)
@@ -16,7 +28,7 @@ for id in ${LANES:-}; do
 
   case "$mode" in
     always)
-      target=$(lane_get "$id" CONCURRENCY 3)
+      target=$(lane_get "$id" CONCURRENCY "${DEFAULT_CONCURRENCY:-3}")
       log "[$label] always-on concurrency=$target"
       ;;
     window)
@@ -47,6 +59,13 @@ for id in ${LANES:-}; do
       log "[$label] lane off"
       ;;
   esac
+
+  # cap by what's left of the shared server resource budget
+  if [ "$target" -gt "$remaining" ]; then
+    log "[$label] capped by resource budget: $target -> $remaining"
+    target=$remaining
+  fi
+  remaining=$((remaining - target))
 
   echo "$target" >"$out"
   if [ "$target" != "$prev" ] && [ -n "${NOTIFY_CMD:-}" ]; then

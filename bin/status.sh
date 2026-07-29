@@ -102,13 +102,18 @@ for id in ${LANES:-}; do
      total_done:([$prs[] | select(.headRefName|startswith("pilot-"+$id+"/"))] | length)}')")
 done
 
+read -r rb_budget rb_load rb_cores rb_mem <"$STATE_DIR/resource-budget" 2>/dev/null || { rb_budget=0; rb_load=0; rb_cores=0; rb_mem=0; }
+resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" \
+  --argjson cores "${rb_cores:-0}" --argjson mem_mb "${rb_mem:-0}" \
+  '{budget:$budget, load5:$load, cores:$cores, mem_mb:$mem_mb}')
+
 join_json "${acc_rows[@]}" | jq \
-  --argjson gen "$now" --arg dispatch "$dispatch" \
+  --argjson gen "$now" --arg dispatch "$dispatch" --argjson resources "$resources" \
   --argjson workers "$(join_json "${proc_rows[@]}")" \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, accounts:., lanes:$lanes, workers:$workers,
-    refill:$refill, throughput:$throughput, claimed:$claimed, recent_prs:$prs}' \
+    resources:$resources, refill:$refill, throughput:$throughput, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

@@ -16,6 +16,8 @@ LANES="t"
 LANE_t_LABEL="T"; LANE_t_MODE="$1"; LANE_t_CMD=true
 WINDOW_DAYS=3; WINDOW_MAX_PCT=50; MIN_CONCURRENCY=1; MAX_CONCURRENCY=6
 BURN_PCT_PER_WORKER_HOUR=2
+DEFAULT_CONCURRENCY=3; CORES_PER_WORKER=2; MEM_MB_PER_WORKER=3000
+RESOURCE_PROBE_CMD='echo "32 0 64000"'
 NOTIFY_CMD="cat >> $tmp/notified"
 $2
 EOF
@@ -56,6 +58,30 @@ check "clamped at per-lane MIN_CONCURRENCY" 2
 
 make_conf window 'LANE_t_USAGE_CMD="false"' 5
 check "usage unavailable keeps previous" 5
+
+make_conf always ''
+check "always mode defaults to DEFAULT_CONCURRENCY" 3
+
+make_conf always 'LANE_t_CONCURRENCY=4 RESOURCE_PROBE_CMD="echo 8 6 64000"'   # (8-6)/2 → 1 slot
+check "cpu load caps concurrency" 1
+
+make_conf always 'LANE_t_CONCURRENCY=4 RESOURCE_PROBE_CMD="echo 32 0 4000"'   # 4000/3000 → 1 slot
+check "low memory caps concurrency" 1
+
+# shared budget: (16-8)/2 = 4 slots for two lanes wanting 3 each → 3 then 1
+cat >"$ISSUE_PILOT_CONF" <<EOF
+GH_REPO=x/y; READY_LABEL=r; CLAIM_LABEL=c
+REFILL_THRESHOLD=10; SCANNER_CMD=true; POLL_SECS=1; BATCH_SIZE=25
+LANES="a b"
+LANE_a_LABEL=A; LANE_a_MODE=always; LANE_a_CONCURRENCY=3; LANE_a_CMD=true
+LANE_b_LABEL=B; LANE_b_MODE=always; LANE_b_CONCURRENCY=3; LANE_b_CMD=true
+CORES_PER_WORKER=2; MEM_MB_PER_WORKER=3000
+RESOURCE_PROBE_CMD='echo "16 8 64000"'
+EOF
+bash bin/pace.sh >/dev/null
+got_a=$(cat "$tmp/state/lane-a.concurrency"); got_b=$(cat "$tmp/state/lane-b.concurrency")
+[ "$got_a" = 3 ] && [ "$got_b" = 1 ] || { echo "FAIL shared budget: a=$got_a b=$got_b expected 3/1"; exit 1; }
+echo "ok   shared budget allocated in lane order"
 
 [ -f "$tmp/notified" ] || { echo "FAIL: concurrency changes did not notify"; exit 1; }
 echo "ok   changes notify"

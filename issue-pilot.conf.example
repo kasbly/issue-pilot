@@ -54,6 +54,15 @@ LANES=""
 # LANE_main_CREDENTIALS="$HOME/.claude/.credentials.json"
 # LANE_main_CMD='claude -p "$(envsubst < examples/goal.md)" --dangerously-skip-permissions'
 
+# --- Dynamic concurrency: server resource budget ---
+# Each pace tick computes how many workers the box can afford — min of
+# (cores − load5) / CORES_PER_WORKER and mem_available / MEM_MB_PER_WORKER — and
+# caps every lane's concurrency by what's left of that budget (allocated in LANES order).
+DEFAULT_CONCURRENCY=3                # always-mode lanes without their own CONCURRENCY
+CORES_PER_WORKER=2                   # cores one worker (agent + builds/tests) roughly needs
+MEM_MB_PER_WORKER=3000               # memory one worker roughly needs
+#RESOURCE_PROBE_CMD='echo "16 2.5 48000"'  # override "<cores> <load5> <mem_avail_mb>" (tests, non-Linux)
+
 # --- Window-mode defaults (drain leftover quota before it expires) ---
 WINDOW_DAYS=3                        # activate when the reset is closer than this
 WINDOW_MAX_PCT=50                    # ...and usage is still below this percent
