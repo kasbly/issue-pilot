@@ -20,6 +20,7 @@ BASE_BRANCH="main"                   # branch subagents branch from and open PRs
 ISSUE_ORDER="oldest"                 # "oldest" or "newest" issues first
 AUTO_MERGE=false                     # true = merge green-CI PRs; false = leave for review
 BATCH_SIZE=25                        # issues per batch session (small batches survive session limits)
+#REPO_DIR="/path/to/shared-clone"    # shared base clone; subagents branch worktrees off it (default: <issue-pilot>/repo)
 CONCURRENCY=3                        # subagents in parallel inside a batch session
 MIN_CONCURRENCY=1                    # pacer bounds
 MAX_CONCURRENCY=6

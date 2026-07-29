@@ -19,6 +19,7 @@ while true; do
   CONCURRENCY=$concurrency BATCH_SIZE=$BATCH_SIZE GH_REPO=$GH_REPO \
     BASE_BRANCH="${BASE_BRANCH:-main}" AUTO_MERGE="${AUTO_MERGE:-false}" \
     ISSUE_ORDER="${ISSUE_ORDER:-oldest}" READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL \
+    REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
     bash -c "$BATCH_CMD" >>"$STATE_DIR/batch.log" 2>&1 \
     && log "batch session finished" || log "batch session exited non-zero"
   sleep "$POLL_SECS"

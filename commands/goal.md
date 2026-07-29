@@ -22,8 +22,10 @@ Then run this loop until **count** issues are done or no eligible issues remain:
    open PR referencing them.
 2. Keep at most **concurrency** subagents running; each subagent handles ONE issue:
    - Read the issue. Invalid, already fixed, or duplicate → comment why, close it, done.
-   - Create a fresh git worktree (or clone) so parallel subagents never share a
-     checkout; branch `fix/issue-<n>` off the base branch.
+   - `git fetch origin` first — local refs go stale; branch only from
+     `origin/<base branch>`. Isolate in a git worktree
+     (`git worktree add <tmp path> -b fix/issue-<n> origin/<base>`) so parallel
+     subagents never share a checkout; remove the worktree when done, success or not.
    - Implement the smallest correct fix following the repo's conventions; run the
      repo's tests/linters locally first.
    - Push and open a PR against the base branch with `Closes #<n>` in the body.
