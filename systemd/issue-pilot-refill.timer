@@ -1,0 +1,10 @@
+[Unit]
+Description=issue-pilot: check the issue queue hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

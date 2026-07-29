@@ -1,0 +1,34 @@
+# issue-pilot configuration
+# Copy to issue-pilot.conf next to this file (or point ISSUE_PILOT_CONF at it) and edit.
+# Every value is sourced as shell — quote anything with spaces.
+
+# --- Repo / queue ---
+GH_REPO="owner/repo"                 # the repo whose issues are the work queue
+READY_LABEL="status/approved"        # issues with this label are eligible for workers
+CLAIM_LABEL="in-pilot"               # dispatcher adds this when a worker picks an issue up
+
+# --- Refill (issue generation) ---
+REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
+# Command that generates new issues (your scanner pipeline). Runs from ISSUE_PILOT_HOME.
+SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
+# Example:
+# SCANNER_CMD="claude -p 'Read the scanners/ directory and file up to 75 high-quality issues …'"
+
+# --- Dispatch (workers) ---
+MIN_WORKERS=1
+MAX_WORKERS=4
+POLL_SECS=30                         # how often the dispatcher looks for free slots / new issues
+# Command run per issue; gets ISSUE_NUMBER and GH_REPO in its environment.
+WORKER_CMD="echo 'no worker configured for issue #$ISSUE_NUMBER' >&2; exit 1"
+# Examples:
+# WORKER_CMD='codex exec "Implement github issue #$ISSUE_NUMBER in $GH_REPO and open a PR"'
+# WORKER_CMD='claude -p "Implement github issue #$ISSUE_NUMBER and open a PR" --dangerously-skip-permissions'
+
+# --- Pace (quota thermostat) ---
+# Command printing two numbers on one line: "<pct_of_quota_used 0-100> <seconds_until_reset>".
+# Leave empty to disable pacing (dispatcher then always runs MIN_WORKERS).
+USAGE_CMD=""
+PACE_TOLERANCE=10                    # % deviation from ideal burn line before scaling up/down
+# Optional: notified when actual usage drifts >2x tolerance from the ideal line. Gets $MSG.
+NOTIFY_CMD=""
+# Example: NOTIFY_CMD='curl -s -d "$MSG" ntfy.sh/my-topic'

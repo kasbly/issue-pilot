@@ -1,0 +1,10 @@
+[Unit]
+Description=issue-pilot: re-pace every 2 hours
+
+[Timer]
+OnCalendar=0/2:00
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

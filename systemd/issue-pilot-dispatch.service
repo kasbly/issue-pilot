@@ -1,0 +1,13 @@
+[Unit]
+Description=issue-pilot: keep workers busy on ready issues
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Environment=ISSUE_PILOT_HOME=/opt/issue-pilot
+ExecStart=/usr/bin/env bash /opt/issue-pilot/bin/dispatch.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

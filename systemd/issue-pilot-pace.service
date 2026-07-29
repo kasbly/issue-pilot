@@ -1,0 +1,7 @@
+[Unit]
+Description=issue-pilot: adjust worker count against quota burn rate
+
+[Service]
+Type=oneshot
+Environment=ISSUE_PILOT_HOME=/opt/issue-pilot
+ExecStart=/usr/bin/env bash /opt/issue-pilot/bin/pace.sh
