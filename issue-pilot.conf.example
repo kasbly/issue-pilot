@@ -36,8 +36,13 @@ BATCH_CMD="echo 'no batch command configured' >&2; exit 1"
 
 # --- Pace (quota thermostat) ---
 # Command printing two numbers on one line: "<pct_of_quota_used 0-100> <seconds_until_reset>".
-# Leave empty to disable pacing (dispatcher then always runs MIN_WORKERS).
+# Leave empty to disable pacing (batches then run at constant CONCURRENCY).
+# bin/usage-ccusage.sh estimates from local Claude Code transcripts via ccusage:
+# USAGE_CMD="bash bin/usage-ccusage.sh"
 USAGE_CMD=""
+#WEEKLY_COST_BUDGET=2000             # ccusage cost-equivalent of one fully-used week (see bin/usage-ccusage.sh)
+#WEEKLY_RESET_DAY="Mon"              # weekday your provider's weekly quota resets
+#WEEKLY_RESET_HOUR=0                 # local hour (0-23) of the reset
 PACE_TOLERANCE=10                    # % deviation from ideal burn line before scaling up/down
 # Optional: notified when actual usage drifts >2x tolerance from the ideal line. Gets $MSG.
 NOTIFY_CMD=""

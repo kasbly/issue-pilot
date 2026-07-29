@@ -2,6 +2,7 @@
 # pace: the thermostat. Compares quota actually used against the ideal straight-line
 # burn to the weekly reset, and nudges the batch subagent concurrency up or down.
 . "$(dirname "$0")/lib.sh"
+cd "$ISSUE_PILOT_HOME" # so USAGE_CMD can use relative paths like bin/usage-ccusage.sh
 
 WEEK_SECS=604800
 
