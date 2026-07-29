@@ -42,6 +42,12 @@ BATCH_CMD="echo 'no batch command configured' >&2; exit 1"
 # USAGE_CMD="bash bin/usage-claude.sh"
 USAGE_CMD=""
 #CLAUDE_CREDENTIALS="$HOME/.claude/.credentials.json"  # credentials of the account batches burn
+
+# --- Status page (bin/status.sh + issue-pilot-web.service) ---
+# Accounts shown on the page: semicolon-separated "name|kind|path" entries.
+#   kind=claude → path is that account's .credentials.json (config dir = its dirname)
+#   kind=codex  → path is the ~/.codex/sessions directory
+#STATUS_ACCOUNTS="Claude main|claude|$HOME/.claude/.credentials.json;Codex|codex|$HOME/.codex/sessions"
 PACE_TOLERANCE=10                    # % deviation from ideal burn line before scaling up/down
 # Optional: notified when actual usage drifts >2x tolerance from the ideal line. Gets $MSG.
 NOTIFY_CMD=""

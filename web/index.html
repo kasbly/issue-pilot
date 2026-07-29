@@ -1,0 +1,97 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>issue-pilot status</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#262b35; --fg:#e6e9ef; --dim:#8b93a3;
+          --ok:#4cc38a; --warn:#e5b454; --bad:#e5646e; --accent:#6ea8fe; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:var(--bg); color:var(--fg);
+         font:14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  h1 { font-size:16px; margin:0 0 4px; } h2 { font-size:13px; color:var(--dim); margin:28px 0 10px; text-transform:uppercase; letter-spacing:.08em; }
+  #meta { color:var(--dim); font-size:12px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin-top:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card .name { font-weight:600; font-size:15px; }
+  .kind { font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:99px; padding:1px 8px; margin-left:8px; }
+  .big { font-size:28px; font-weight:700; margin:10px 0 2px; }
+  .bar { position:relative; height:10px; background:#0a0c10; border:1px solid var(--line); border-radius:99px; margin:10px 0 6px; overflow:hidden; }
+  .bar .fill { position:absolute; inset:0 auto 0 0; border-radius:99px; }
+  .bar .pace { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--fg); opacity:.7; }
+  .row { display:flex; justify-content:space-between; color:var(--dim); font-size:12px; }
+  .drift { font-size:12px; margin-top:6px; }
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  table { width:100%; border-collapse:collapse; }
+  td, th { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); font-size:13px; }
+  th { color:var(--dim); font-weight:500; font-size:12px; }
+  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+  .pill { display:inline-block; border-radius:99px; padding:1px 10px; font-size:12px; border:1px solid var(--line); }
+  .empty { color:var(--dim); padding:10px 0; }
+</style>
+
+<h1>issue-pilot <span id="dispatch" class="pill"></span></h1>
+<div id="meta"></div>
+<div class="cards" id="accounts"></div>
+<h2>Working now</h2><div id="workers"></div>
+<h2>Claimed issues</h2><div id="claimed"></div>
+<h2>Recent PRs</h2><div id="prs"></div>
+
+<script>
+const WEEK = 604800;
+const fmtDur = s => {
+  if (s == null || s < 0) return "–";
+  const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
+  return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+};
+const esc = t => { const e = document.createElement("span"); e.textContent = t ?? ""; return e.innerHTML; };
+
+async function refresh() {
+  let s;
+  try { s = await (await fetch("status.json", {cache:"no-store"})).json(); }
+  catch { document.getElementById("meta").textContent = "status.json unavailable"; return; }
+  const now = Math.floor(Date.now()/1000);
+
+  document.getElementById("dispatch").textContent = "dispatch: " + (s.dispatch || "?");
+  document.getElementById("dispatch").className = "pill " + (s.dispatch === "active" ? "ok" : "bad");
+  document.getElementById("meta").textContent = "data collected " + fmtDur(now - s.generated_at) + " ago · page refreshes every 60s";
+
+  document.getElementById("accounts").innerHTML = (s.accounts || []).map(a => {
+    const secs = a.resets_at ? a.resets_at - now : null;
+    const expected = secs != null ? Math.max(0, Math.min(100, 100 * (1 - secs/WEEK))) : null;
+    const drift = (a.used_pct != null && expected != null) ? expected - a.used_pct : null;
+    const cls = drift == null ? "" : drift > 10 ? "warn" : drift < -10 ? "bad" : "ok";
+    const driftTxt = drift == null ? "no data" :
+      drift > 10 ? `${drift.toFixed(0)}% behind pace — quota will be left over` :
+      drift < -10 ? `${(-drift).toFixed(0)}% ahead of pace` : "on pace";
+    const stale = a.kind === "codex" && a.stale_secs > 3600 ? ` · snapshot ${fmtDur(a.stale_secs)} old` : "";
+    return `<div class="card">
+      <span class="name">${esc(a.name)}</span><span class="kind">${esc(a.kind)}</span>
+      <div class="big">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : "–"}</div>
+      <div class="bar">
+        <div class="fill" style="width:${a.used_pct ?? 0}%; background:${drift != null && drift > 10 ? "var(--warn)" : "var(--accent)"}"></div>
+        ${expected != null ? `<div class="pace" style="left:${expected}%" title="ideal pace ${expected.toFixed(0)}%"></div>` : ""}
+      </div>
+      <div class="row"><span>resets in ${fmtDur(secs)}</span>
+        <span>${a.resets_at ? new Date(a.resets_at*1000).toLocaleString(undefined,{weekday:"short",hour:"2-digit",minute:"2-digit"}) : ""}</span></div>
+      <div class="drift ${cls}">${driftTxt}${esc(stale)}</div>
+    </div>`;
+  }).join("");
+
+  const w = s.workers || [];
+  document.getElementById("workers").innerHTML = w.length
+    ? "<table><tr><th>account</th><th>pid</th><th>running for</th></tr>" +
+      w.map(p => `<tr><td>${esc(p.account)}</td><td>${p.pid}</td><td>${fmtDur(p.uptime_secs)}</td></tr>`).join("") + "</table>"
+    : `<div class="empty">no agent sessions running</div>`;
+
+  const c = s.claimed || [];
+  document.getElementById("claimed").innerHTML = c.length
+    ? "<table>" + c.map(i => `<tr><td><a href="${esc(i.url)}">#${i.number}</a></td><td>${esc(i.title)}</td></tr>`).join("") + "</table>"
+    : `<div class="empty">nothing claimed</div>`;
+
+  const p = s.recent_prs || [];
+  document.getElementById("prs").innerHTML = p.length
+    ? "<table>" + p.map(x => `<tr><td><a href="${esc(x.url)}">#${x.number}</a></td><td>${esc(x.title)}</td><td>${fmtDur(now - Math.floor(new Date(x.createdAt)/1000))} ago</td></tr>`).join("") + "</table>"
+    : `<div class="empty">none</div>`;
+}
+refresh(); setInterval(refresh, 60000);
+</script>
