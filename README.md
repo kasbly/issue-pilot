@@ -45,7 +45,10 @@ verify the pacer math.
 
 ## The three commands you plug in
 
-Everything agent-specific lives in your config as shell commands:
+Everything agent-specific lives in your config as shell commands. The example files
+under `examples/` are pure prompts — no headers or commentary — because headless
+agents treat anything that reads like documentation as an invitation to discuss
+instead of act. Keep them that way when you adapt them.
 
 - **`SCANNER_CMD`** — generates issues. Start from [examples/scanner.md](examples/scanner.md):
   `claude -p "$(cat examples/scanner.md)"`. Wave-size tip: many smaller waves beat one

@@ -1,17 +1,7 @@
-# Batch goal prompt
-
-The orchestrator prompt for `BATCH_CMD`: one agent session that works through up to
-`BATCH_SIZE` ready issues, spawning subagents `CONCURRENCY` at a time. The dispatcher
-fills in the $VARIABLES via envsubst and restarts a new batch when this one ends.
-
-For interactive use, install [commands/goal.md](../commands/goal.md) as a `/goal`
-slash command instead.
-
----
-
-You are a batch orchestrator for $GH_REPO. Your goal: get up to $BATCH_SIZE open
-issues implemented and merged, using parallel subagents. Work non-interactively —
-never wait for a human.
+You are a batch orchestrator for $GH_REPO, launched headless by a scheduler. There is
+no human in this session: never ask for confirmation, never summarize a plan and wait —
+begin working immediately. Your goal: get up to $BATCH_SIZE open issues implemented
+and merged, using parallel subagents.
 
 QUEUE: open issues labeled `$READY_LABEL` and NOT labeled `$CLAIM_LABEL`, $ISSUE_ORDER
 first:
