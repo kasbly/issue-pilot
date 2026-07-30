@@ -59,6 +59,20 @@ check "clamped at per-lane MIN_CONCURRENCY" 2
 make_conf window 'LANE_t_USAGE_CMD="false"' 5
 check "usage unavailable keeps previous" 5
 
+make_conf window 'LANE_t_USAGE_CMD="echo 60 129600"'
+touch "$tmp/state/lane-t.window-open"                          # drain already started
+check "drain continues past entry threshold (hysteresis)" 1
+
+make_conf window 'LANE_t_USAGE_CMD="echo 98 7200"'
+touch "$tmp/state/lane-t.window-open"
+check "drain stops at DRAIN_STOP_PCT" 0
+
+make_conf window 'LANE_t_USAGE_CMD="echo 20 432000"'           # reset passed → 5d away again
+touch "$tmp/state/lane-t.window-open"
+bash bin/pace.sh >/dev/null
+[ ! -f "$tmp/state/lane-t.window-open" ] || { echo "FAIL: window flag not cleared after reset"; exit 1; }
+echo "ok   window flag clears once reset passes"
+
 make_conf window 'LANE_t_USAGE_CMD="echo 10 86400 95 1200" FIVE_HOUR_THROTTLE_PCT=85'
 check "hot 5h window throttles to cap" 1
 

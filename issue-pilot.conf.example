@@ -69,7 +69,9 @@ RESOURCE_MIN_BUDGET=3                # never squeeze the total below this ("the 
 
 # --- Window-mode defaults (drain leftover quota before it expires) ---
 WINDOW_DAYS=3                        # activate when the reset is closer than this
-WINDOW_MAX_PCT=50                    # ...and usage is still below this percent
+WINDOW_MAX_PCT=50                    # ...and usage is still below this percent (ENTRY gate
+                                     # only — once draining, the lane keeps going past it)
+DRAIN_STOP_PCT=97                    # stop the drain when the account reaches this
 MIN_CONCURRENCY=1                    # floor while a window lane is active
 MAX_CONCURRENCY=6                    # ceiling per lane
 BURN_PCT_PER_WORKER_HOUR=2           # rough % of weekly quota one subagent burns per hour;

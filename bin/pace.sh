@@ -38,7 +38,18 @@ for id in ${LANES:-}; do
       if read -r pct secs h5pct h5secs < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${secs:-}" ]; then
         wdays=$(lane_get "$id" WINDOW_DAYS "${WINDOW_DAYS:-3}")
         wmax=$(lane_get "$id" WINDOW_MAX_PCT "${WINDOW_MAX_PCT:-50}")
-        if awk -v s="$secs" -v w="$wdays" -v p="$pct" -v m="$wmax" 'BEGIN { exit !(s <= w*86400 && p < m) }'; then
+        stop=$(lane_get "$id" DRAIN_STOP_PCT "${DRAIN_STOP_PCT:-97}")
+        # WINDOW_MAX_PCT is an ENTRY gate only. Once the drain starts it must keep
+        # going past that mark (flag file = hysteresis), else it stops at the
+        # threshold and strands the rest. The flag clears when the reset passes.
+        flag="$STATE_DIR/lane-$id.window-open"
+        if ! awk -v s="$secs" -v w="$wdays" 'BEGIN { exit !(s <= w*86400) }'; then
+          rm -f "$flag"
+        fi
+        entered=1; [ -f "$flag" ] || awk -v p="$pct" -v m="$wmax" 'BEGIN { exit !(p < m) }' || entered=0
+        if [ "$entered" = 1 ] && awk -v s="$secs" -v w="$wdays" -v p="$pct" -v stop="$stop" \
+             'BEGIN { exit !(s <= w*86400 && p < stop) }'; then
+          touch "$flag"
           burn=$(lane_get "$id" BURN_PCT_PER_WORKER_HOUR "${BURN_PCT_PER_WORKER_HOUR:-2}")
           hi=$(lane_get "$id" MAX_CONCURRENCY "${MAX_CONCURRENCY:-6}")
           lo=$(lane_get "$id" MIN_CONCURRENCY "${MIN_CONCURRENCY:-1}")
