@@ -23,6 +23,7 @@
     "darwin"
   ],
   "license": "MIT",
+  "author": "Kasbly (https://kasbly.com)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kasbly/issue-pilot.git"

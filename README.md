@@ -1,10 +1,24 @@
 # issue-pilot
 
-Keep AI coding agents fed with GitHub issues, and pace the whole thing so your
-subscription quota is spent by the weekly reset — not before, not after.
+**An autonomous issue implementer that runs as an infinite loop.** AI scanner
+agents read your codebase and file real GitHub issues; AI worker lanes (Claude,
+Codex — any CLI agent) claim them and implement them into merged PRs; and when
+the queue runs low, the scanner refills it. Unattended, around the clock:
 
-Three small loops, plain bash + `gh` + systemd. No daemon framework, no database:
-GitHub Issues **is** the queue, labels **are** the state machine.
+> **scan → file issues → implement → PR → CI → merge → queue low? → scan again → ∞**
+
+A pacer meters the whole machine against your AI subscriptions — each lane speeds
+up or slows down so every weekly quota is *fully* used by its reset, and none of
+it expires unspent. A resource governor keeps the loop from eating the server.
+
+```bash
+npm install -g @kasbly/issue-pilot
+```
+
+Under the hood: three small loops in plain bash + `gh` + systemd. No daemon
+framework, no database — GitHub Issues **is** the queue, labels **are** the
+state machine, and every agent-specific behavior is a shell command in one
+config file.
 
 ![status page](docs/status-page.png)
 
@@ -132,3 +146,8 @@ to the account burning them; claimed issues and recent PRs.
   finish first.
 - Keep `BATCH_SIZE` modest (≤25): smaller batches survive session/context limits,
   and a crashed session costs at most one batch, not the whole backlog.
+
+---
+
+Built by [Kasbly](https://kasbly.com), where issue-pilot runs in production —
+three AI subscriptions grinding through one product backlog around the clock.
