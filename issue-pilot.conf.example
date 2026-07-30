@@ -32,7 +32,10 @@ BATCH_SIZE=25                        # issues per batch session (small batches s
 #                 AUTO_MERGE, ISSUE_ORDER, SORT_DIR, READY_LABEL, CLAIM_LABEL, REPO_DIR,
 #                 LANE_NAME, LANE_SLUG in its environment
 #   CONCURRENCY   subagents per batch (always mode; window mode computes its own)
-#   CREDENTIALS   (window) that account's .claude/.credentials.json for usage reading
+#   CREDENTIALS   (window) that account's .claude/.credentials.json for usage reading.
+#                 NOTE: an account that runs no sessions gets a stale OAuth token and its
+#                 usage becomes unreadable — schedule a tiny keepalive session, e.g. cron:
+#                 0 */6 * * * CLAUDE_CONFIG_DIR=<dir> claude -p "Reply OK" --dangerously-skip-permissions
 #   USAGE_CMD     (window) override usage source; must print "<pct_used> <secs_to_reset>"
 #                 (default: bin/usage-claude.sh with CREDENTIALS)
 #   MODEL/EFFORT  shown on the status page; keep in sync with the flags in CMD
