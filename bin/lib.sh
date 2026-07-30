@@ -4,7 +4,7 @@ set -euo pipefail
 ISSUE_PILOT_HOME="${ISSUE_PILOT_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ISSUE_PILOT_CONF="${ISSUE_PILOT_CONF:-$ISSUE_PILOT_HOME/issue-pilot.conf}"
 
-[ -f "$ISSUE_PILOT_CONF" ] || { echo "issue-pilot: config not found: $ISSUE_PILOT_CONF (copy issue-pilot.conf.example)" >&2; exit 1; }
+[ -f "$ISSUE_PILOT_CONF" ] || { echo "issue-pilot: config not found: $ISSUE_PILOT_CONF — run 'issue-pilot init <dir>' and set ISSUE_PILOT_HOME=<dir> (or copy issue-pilot.conf.example)" >&2; exit 1; }
 # shellcheck disable=SC1090
 . "$ISSUE_PILOT_CONF"
 

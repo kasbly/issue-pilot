@@ -1,0 +1,45 @@
+{
+  "name": "@kasbly/issue-pilot",
+  "version": "0.9.0",
+  "description": "Self-feeding GitHub issue mill: scanners refill the queue, AI agent lanes (Claude/Codex) implement issues into PRs, and a pacer drains your subscription quota exactly by its weekly reset.",
+  "bin": {
+    "issue-pilot": "bin/issue-pilot"
+  },
+  "files": [
+    "bin",
+    "systemd",
+    "examples",
+    "commands",
+    "web/index.html",
+    "issue-pilot.conf.example",
+    "docs/status-page.png"
+  ],
+  "scripts": {
+    "test": "./test.sh",
+    "prepublishOnly": "./test.sh"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kasbly/issue-pilot.git"
+  },
+  "homepage": "https://github.com/kasbly/issue-pilot#readme",
+  "bugs": {
+    "url": "https://github.com/kasbly/issue-pilot/issues"
+  },
+  "keywords": [
+    "github-issues",
+    "ai-agents",
+    "claude",
+    "codex",
+    "automation",
+    "quota",
+    "orchestration",
+    "systemd",
+    "autonomous-coding"
+  ]
+}

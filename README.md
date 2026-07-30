@@ -31,19 +31,33 @@ GitHub Issues **is** the queue, labels **are** the state machine.
 
 ## Install
 
+Via npm:
+
+```bash
+npm install -g @kasbly/issue-pilot
+issue-pilot init /opt/issue-pilot    # scaffolds conf, state/, web/, templated systemd units
+issue-pilot doctor                   # checks gh/jq/curl/flock/envsubst and gh auth
+$EDITOR /opt/issue-pilot/issue-pilot.conf
+sudo cp /opt/issue-pilot/systemd/* /etc/systemd/system/ && sudo systemctl daemon-reload
+sudo systemctl enable --now issue-pilot-refill.timer issue-pilot-pace.timer \
+  issue-pilot-dispatch.service issue-pilot-status.timer issue-pilot-web.service
+```
+
+Or from a git clone (code and working dir in one place):
+
 ```bash
 git clone https://github.com/kasbly/issue-pilot /opt/issue-pilot
 cd /opt/issue-pilot
 cp issue-pilot.conf.example issue-pilot.conf
-$EDITOR issue-pilot.conf            # set repo, labels, scanner/batch/usage commands
+$EDITOR issue-pilot.conf            # set repo, labels, lanes, scanner command
 cp systemd/* /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now issue-pilot-refill.timer issue-pilot-pace.timer issue-pilot-dispatch.service
 ```
 
-Cloned somewhere other than `/opt/issue-pilot`? Update the paths in the unit files.
-Needs: `bash`, `gh` (authenticated), `awk`, `flock`, `envsubst`. Run `./test.sh` to
-verify the pacer math.
+Cloned somewhere other than `/opt/issue-pilot`? Update the paths in the unit files
+(`issue-pilot init` does this templating for you). Needs: `bash`, `gh` (authenticated),
+`jq`, `curl`, `awk`, `flock`, `envsubst`. Run `./test.sh` to verify the pacer math.
 
 ## The three commands you plug in
 

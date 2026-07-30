@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# issue-pilot CLI — thin dispatcher over the loop scripts.
+# The PACKAGE dir (this file's home) is read-only code; the WORKING dir
+# (ISSUE_PILOT_HOME, created by `issue-pilot init`) holds conf, state/, web/.
+set -euo pipefail
+
+self="${BASH_SOURCE[0]}"
+[ -L "$self" ] && self="$(readlink -f "$self" 2>/dev/null || echo "$self")"
+PKG_DIR="$(cd "$(dirname "$self")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+issue-pilot — keep AI coding agents fed with GitHub issues, paced to your quota
+
+Usage: issue-pilot <command> [args]
+
+  init [dir]    scaffold a working directory (default /opt/issue-pilot):
+                conf, state/, web/, examples/, and systemd units templated
+                with real paths — then edit <dir>/issue-pilot.conf
+  doctor        check system dependencies (gh, jq, curl, flock, envsubst…)
+  refill        run the queue-refill check once
+  pace          recompute lane concurrency once
+  status        refresh web/status.json once
+  dispatch      run the dispatcher loop in the foreground (systemd runs this)
+  version       print the package version
+
+The working dir is picked from $ISSUE_PILOT_HOME (or set per-unit by init).
+EOF
+}
+
+cmd="${1:-}"; shift 2>/dev/null || true
+case "$cmd" in
+  init)
+    dir="${1:-/opt/issue-pilot}"
+    mkdir -p "$dir/state" "$dir/web" "$dir/examples" "$dir/systemd"
+    cp -n "$PKG_DIR/issue-pilot.conf.example" "$dir/issue-pilot.conf" 2>/dev/null || true
+    cp "$PKG_DIR/examples/"*.md "$dir/examples/"
+    cp "$PKG_DIR/web/index.html" "$dir/web/index.html"
+    run_user="$(id -un)"
+    for unit in "$PKG_DIR/systemd/"*; do
+      name="$(basename "$unit")"
+      sed -e "s|Environment=ISSUE_PILOT_HOME=/opt/issue-pilot|Environment=ISSUE_PILOT_HOME=$dir|" \
+          -e "s|/opt/issue-pilot/bin/|$PKG_DIR/bin/|" \
+          -e "s|--directory /opt/issue-pilot/web|--directory $dir/web|" \
+          "$unit" > "$dir/systemd/$name"
+      if [[ "$name" == *.service ]] && [ "$run_user" != root ] && ! grep -q "^User=" "$dir/systemd/$name"; then
+        sed -i.bak "/^\[Service\]/a\\
+User=$run_user" "$dir/systemd/$name" && rm -f "$dir/systemd/$name.bak"
+      fi
+    done
+    cat <<EOF
+Initialized $dir
+
+Next steps:
+  1. \$EDITOR $dir/issue-pilot.conf     # repo, labels, lanes, scanner command
+  2. issue-pilot doctor                # verify system dependencies
+  3. sudo cp $dir/systemd/* /etc/systemd/system/ && sudo systemctl daemon-reload
+  4. sudo systemctl enable --now issue-pilot-refill.timer issue-pilot-pace.timer \\
+       issue-pilot-dispatch.service issue-pilot-status.timer issue-pilot-web.service
+EOF
+    ;;
+  doctor)
+    ok=0
+    for dep in bash gh jq curl awk flock envsubst git; do
+      if command -v "$dep" >/dev/null 2>&1; then echo "ok      $dep"; else echo "MISSING $dep"; ok=1; fi
+    done
+    if gh auth status >/dev/null 2>&1; then echo "ok      gh authenticated"; else echo "MISSING gh not authenticated (run: gh auth login)"; ok=1; fi
+    command -v systemctl >/dev/null 2>&1 && echo "ok      systemd" || echo "note    no systemd — run the loops via your own scheduler"
+    [ "${BASH_VERSINFO[0]}" -ge 4 ] && echo "ok      bash ${BASH_VERSION%%(*}" || echo "note    bash 3.x — dispatch needs bash 4+ (fine on Linux)"
+    exit $ok
+    ;;
+  refill|pace|status|dispatch)
+    exec bash "$PKG_DIR/bin/$cmd.sh" "$@"
+    ;;
+  version)
+    sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$PKG_DIR/package.json"
+    ;;
+  ""|-h|--help|help)
+    usage
+    ;;
+  *)
+    echo "issue-pilot: unknown command '$cmd'" >&2; usage >&2; exit 1
+    ;;
+esac
