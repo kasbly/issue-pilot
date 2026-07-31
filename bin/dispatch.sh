@@ -13,9 +13,19 @@ while true; do
   . "$ISSUE_PILOT_CONF" # hot-reload: conf edits apply from the next batch, no restart
 
   for id in "${!lane_pid[@]}"; do
-    kill -0 "${lane_pid[$id]}" 2>/dev/null && continue
+    if kill -0 "${lane_pid[$id]}" 2>/dev/null; then
+      # the pacer zeroed this lane (quota back on pace / resources gone): stop the
+      # whole batch process group now instead of letting it run on stale concurrency
+      c=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
+      if [ "$c" -eq 0 ]; then
+        log "lane $id: target dropped to 0 — stopping running batch"
+        kill -TERM -- "-${lane_pid[$id]}" 2>/dev/null || kill -TERM "${lane_pid[$id]}" 2>/dev/null || true
+      fi
+      continue
+    fi
     wait "${lane_pid[$id]}" && st=0 || st=$?
     log "lane $id: batch finished status=$st"
+    [ "$st" -ne 0 ] && log "lane $id: non-zero exit — issues it claimed may need '$CLAIM_LABEL' removed to re-queue"
     unset "lane_pid[$id]"
   done
 
@@ -34,9 +44,10 @@ while true; do
         READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL \
         REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
         LANE_NAME="$label" LANE_SLUG="pilot-$id" \
-        bash -c "$(lane_get "$id" CMD 'echo "lane has no CMD configured" >&2; exit 1')" \
+        setsid bash -c "$(lane_get "$id" CMD 'echo "lane has no CMD configured" >&2; exit 1')" \
         >>"$STATE_DIR/batch-$id.log" 2>&1 &
-      lane_pid[$id]=$!
+      lane_pid[$id]=$! # setsid: the batch leads its own process group, so a lane
+                       # stop can kill orchestrator AND subagents together
     done
   fi
   sleep "$POLL_SECS"
