@@ -14,7 +14,7 @@ GH_REPO=x/y; READY_LABEL=r; CLAIM_LABEL=c
 REFILL_THRESHOLD=10; SCANNER_CMD=true; POLL_SECS=1; BATCH_SIZE=25
 LANES="t"
 LANE_t_LABEL="T"; LANE_t_MODE="$1"; LANE_t_CMD=true
-WINDOW_DAYS=3; WINDOW_MAX_PCT=50; MIN_CONCURRENCY=1; MAX_CONCURRENCY=6
+PACE_TOLERANCE_PCT=5; CATCHUP_HOURS=4; MIN_CONCURRENCY=1; MAX_CONCURRENCY=6
 BURN_PCT_PER_WORKER_HOUR=2
 DEFAULT_CONCURRENCY=3; CORES_PER_WORKER=2; MEM_MB_PER_WORKER=3000; RESOURCE_MIN_BUDGET=1
 RESOURCE_PROBE_CMD='echo "32 0 64000"'
@@ -38,46 +38,30 @@ check "always mode uses fixed concurrency" 4
 make_conf off ''
 check "off mode writes 0" 0
 
-make_conf window 'LANE_t_USAGE_CMD="echo 40 432000"'          # resets in 5d — outside window
-check "outside window stays 0" 0
+# pace line = 100 * (1 - secs_left/604800); tol 5, catchup 4h, burn 2 from template
+make_conf window 'LANE_t_USAGE_CMD="echo 60 302400"'          # line at 50%, we are ahead
+check "ahead of pace idles" 0
 
-make_conf window 'LANE_t_USAGE_CMD="echo 60 129600"'          # 60% used — over threshold
-check "over usage threshold stays 0" 0
+make_conf window 'LANE_t_USAGE_CMD="echo 47 302400"'          # 3% behind — within tolerance
+check "within tolerance idles" 0
 
-make_conf window 'LANE_t_USAGE_CMD="echo 40 129600"'          # 36h left: 60%/(36h*2) → 1
-check "eligible: light leftover gets 1 worker" 1
+make_conf window 'LANE_t_USAGE_CMD="echo 20 302400"'          # 30% behind: 30/(4*2) → 4
+check "behind pace catches up" 4
 
-make_conf window 'LANE_t_USAGE_CMD="echo 10 86400"'           # 24h left: 90%/(24h*2) → 2
-check "eligible: heavy leftover scales up" 2
+make_conf window 'LANE_t_USAGE_CMD="echo 40 21600"'           # 6h to reset, 56% behind → clamp
+check "big deficit clamps at MAX_CONCURRENCY" 6
 
-make_conf window 'LANE_t_USAGE_CMD="echo 0 21600" BURN_PCT_PER_WORKER_HOUR=1'  # 6h left: 100/6 → clamp
-check "clamped at MAX_CONCURRENCY" 6
-
-make_conf window 'LANE_t_USAGE_CMD="echo 45 255600" LANE_t_MIN_CONCURRENCY=2'  # 71h left, tiny need
+make_conf window 'LANE_t_USAGE_CMD="echo 42 302400" LANE_t_MIN_CONCURRENCY=2'  # 8% behind, tiny need
 check "clamped at per-lane MIN_CONCURRENCY" 2
 
 make_conf window 'LANE_t_USAGE_CMD="false"' 5
 check "usage unavailable keeps previous" 5
 
-make_conf window 'LANE_t_USAGE_CMD="echo 60 129600"'
-touch "$tmp/state/lane-t.window-open"                          # drain already started
-check "drain continues past entry threshold (hysteresis)" 1
-
-make_conf window 'LANE_t_USAGE_CMD="echo 98 7200"'
-touch "$tmp/state/lane-t.window-open"
-check "drain stops at DRAIN_STOP_PCT" 0
-
-make_conf window 'LANE_t_USAGE_CMD="echo 20 432000"'           # reset passed → 5d away again
-touch "$tmp/state/lane-t.window-open"
-bash bin/pace.sh >/dev/null
-[ ! -f "$tmp/state/lane-t.window-open" ] || { echo "FAIL: window flag not cleared after reset"; exit 1; }
-echo "ok   window flag clears once reset passes"
-
-make_conf window 'LANE_t_USAGE_CMD="echo 10 86400 95 1200" FIVE_HOUR_THROTTLE_PCT=85'
+make_conf window 'LANE_t_USAGE_CMD="echo 20 302400 95 1200" FIVE_HOUR_THROTTLE_PCT=85'
 check "hot 5h window throttles to cap" 1
 
-make_conf window 'LANE_t_USAGE_CMD="echo 10 86400 50 1200" FIVE_HOUR_THROTTLE_PCT=85'
-check "cool 5h window leaves target alone" 2
+make_conf window 'LANE_t_USAGE_CMD="echo 20 302400 50 1200" FIVE_HOUR_THROTTLE_PCT=85'
+check "cool 5h window leaves target alone" 4
 
 make_conf always ''
 check "always mode defaults to DEFAULT_CONCURRENCY" 3

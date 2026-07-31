@@ -115,14 +115,16 @@ oldest first, repo default branch, no auto-merge, 3 subagents).
 - **`always`** — the workhorse subscription (typically the one that resets often and
   exists to be burned). Runs whenever ready issues exist, at a fixed `CONCURRENCY`.
   No pacing: pacing a workhorse only slows it down.
-- **`window`** — the "never waste quota" drain valve, for subscriptions you mainly
-  use interactively. The lane stays **off** most of the week, then activates when
-  the account's reset is `≤ WINDOW_DAYS` away **and** usage is `< WINDOW_MAX_PCT` —
-  i.e. quota is about to expire unused. While active, concurrency is recomputed each
-  tick as `(100 − used%) / (hours_left × BURN_PCT_PER_WORKER_HOUR)`, clamped to
-  `[MIN_CONCURRENCY, MAX_CONCURRENCY]` — enough workers to land near 100% at the
-  reset. After the reset the account leaves the window and the lane switches itself
-  off, leaving the fresh week untouched.
+- **`window`** — the pace follower, for subscriptions you also use interactively.
+  The ideal line runs 0% right after the account's reset to 100% at the next one.
+  Whenever usage falls more than `PACE_TOLERANCE_PCT` behind that line, the lane
+  runs enough workers to close the gap within `CATCHUP_HOURS` —
+  `deficit / (CATCHUP_HOURS × BURN_PCT_PER_WORKER_HOUR)`, clamped to
+  `[MIN_CONCURRENCY, MAX_CONCURRENCY]` — then idles once back on pace. Your own
+  interactive use pushes the account ahead of the line and the lane simply stays
+  quiet; quiet days pull it behind and the lane fills them with issue work. The
+  quota lands at ~100% by every reset, all week long, hands-off. Raise
+  `PACE_TOLERANCE_PCT` to keep more slack for yourself.
 - **`off`** — parked.
 
 Every knob has a global default and a per-lane `LANE_<id>_…` override. Concurrency

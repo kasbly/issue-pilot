@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # pace: decides each lane's batch concurrency and writes it to state/lane-<id>.concurrency.
 #   always → the lane's fixed CONCURRENCY, unconditionally
-#   window → 0 until the account is close to its quota reset AND still underused,
-#            then enough concurrency to drain the leftover quota by the reset
+#   window → pace follower: whenever the account's usage falls behind the straight-line
+#            burn toward its weekly reset, run enough workers to catch back up to the
+#            line; once on (or ahead of) pace, idle
 #   off    → 0
 . "$(dirname "$0")/lib.sh"
 cd "$ISSUE_PILOT_HOME"
@@ -36,28 +37,21 @@ for id in ${LANES:-}; do
       ucmd=$(lane_get "$id" USAGE_CMD)
       [ -n "$ucmd" ] || ucmd="CLAUDE_CREDENTIALS='$(lane_get "$id" CREDENTIALS)' bash bin/usage-claude.sh"
       if read -r pct secs h5pct h5secs < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${secs:-}" ]; then
-        wdays=$(lane_get "$id" WINDOW_DAYS "${WINDOW_DAYS:-3}")
-        wmax=$(lane_get "$id" WINDOW_MAX_PCT "${WINDOW_MAX_PCT:-50}")
-        stop=$(lane_get "$id" DRAIN_STOP_PCT "${DRAIN_STOP_PCT:-97}")
-        # WINDOW_MAX_PCT is an ENTRY gate only. Once the drain starts it must keep
-        # going past that mark (flag file = hysteresis), else it stops at the
-        # threshold and strands the rest. The flag clears when the reset passes.
-        flag="$STATE_DIR/lane-$id.window-open"
-        if ! awk -v s="$secs" -v w="$wdays" 'BEGIN { exit !(s <= w*86400) }'; then
-          rm -f "$flag"
-        fi
-        entered=1; [ -f "$flag" ] || awk -v p="$pct" -v m="$wmax" 'BEGIN { exit !(p < m) }' || entered=0
-        if [ "$entered" = 1 ] && awk -v s="$secs" -v w="$wdays" -v p="$pct" -v stop="$stop" \
-             'BEGIN { exit !(s <= w*86400 && p < stop) }'; then
-          touch "$flag"
-          burn=$(lane_get "$id" BURN_PCT_PER_WORKER_HOUR "${BURN_PCT_PER_WORKER_HOUR:-2}")
-          hi=$(lane_get "$id" MAX_CONCURRENCY "${MAX_CONCURRENCY:-6}")
-          lo=$(lane_get "$id" MIN_CONCURRENCY "${MIN_CONCURRENCY:-1}")
-          # workers needed to burn the remaining % by the reset; re-computed from real
-          # usage every tick, so a wrong BURN constant self-corrects
-          target=$(awk -v p="$pct" -v s="$secs" -v b="$burn" -v hi="$hi" -v lo="$lo" \
-            'BEGIN { h = s/3600; if (h < 1) h = 1;
-                     t = int((100 - p) / (h * b) + 0.999);
+        rm -f "$STATE_DIR/lane-$id.window-open" # obsolete pre-pace-follower state
+        tol=$(lane_get "$id" PACE_TOLERANCE_PCT "${PACE_TOLERANCE_PCT:-5}")
+        catchup=$(lane_get "$id" CATCHUP_HOURS "${CATCHUP_HOURS:-4}")
+        burn=$(lane_get "$id" BURN_PCT_PER_WORKER_HOUR "${BURN_PCT_PER_WORKER_HOUR:-2}")
+        hi=$(lane_get "$id" MAX_CONCURRENCY "${MAX_CONCURRENCY:-6}")
+        lo=$(lane_get "$id" MIN_CONCURRENCY "${MIN_CONCURRENCY:-1}")
+        # Pace follower: the ideal line runs 0% right after a reset to 100% at the
+        # next one. Behind the line by more than the tolerance → enough workers to
+        # close the gap within CATCHUP_HOURS; on or ahead of it → idle. Near the
+        # reset the gap IS the leftover quota, so this subsumes the old drain mode.
+        expected=$(awk -v s="$secs" 'BEGIN { printf "%.1f", 100 * (1 - s / 604800) }')
+        behind=$(awk -v e="$expected" -v p="$pct" 'BEGIN { printf "%.1f", e - p }')
+        if awk -v b="$behind" -v t="$tol" 'BEGIN { exit !(b > t) }'; then
+          target=$(awk -v b="$behind" -v c="$catchup" -v r="$burn" -v hi="$hi" -v lo="$lo" \
+            'BEGIN { t = int(b / (c * r) + 0.999);
                      if (t < lo) t = lo; if (t > hi) t = hi; print t }')
         fi
         # the weekly window is the goal, but the 5-hour session window is the wall:
@@ -69,8 +63,8 @@ for id in ${LANES:-}; do
           log "[$label] 5h window at ${h5pct}% (resets in $(( ${h5secs:-0} / 60 ))m) — throttling $target -> $h5cap"
           target=$h5cap
         fi
-        state=idle; [ "$target" -gt 0 ] && state=ACTIVE
-        log "[$label] used=${pct}% resets_in=$((secs / 3600))h window=$state concurrency=$target"
+        state=on-pace; [ "$target" -gt 0 ] && state=BEHIND
+        log "[$label] used=${pct}% pace=${expected}% behind=${behind}% resets_in=$((secs / 3600))h $state concurrency=$target"
       else
         target=$prev
         log "[$label] usage unavailable — keeping concurrency=$prev"

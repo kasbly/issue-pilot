@@ -40,11 +40,11 @@ BATCH_SIZE=25                        # issues per batch session (small batches s
 #                 (default: bin/usage-claude.sh with CREDENTIALS)
 #   MODEL/EFFORT  shown on the status page; keep in sync with the flags in CMD
 #                 (claude: --model X --effort Y · codex: -m X -c model_reasoning_effort=Y)
-# Per-lane overrides of the window defaults below: LANE_<id>_WINDOW_DAYS,
-# LANE_<id>_WINDOW_MAX_PCT, LANE_<id>_MIN_CONCURRENCY, LANE_<id>_MAX_CONCURRENCY,
+# Per-lane overrides of the window defaults below: LANE_<id>_PACE_TOLERANCE_PCT,
+# LANE_<id>_CATCHUP_HOURS, LANE_<id>_MIN_CONCURRENCY, LANE_<id>_MAX_CONCURRENCY,
 # LANE_<id>_BURN_PCT_PER_WORKER_HOUR.
 LANES=""
-# Example — Codex grinding full-time, a Claude sub draining leftovers before reset:
+# Example — Codex grinding full-time, a Claude sub kept on its pace line:
 # LANES="codex main"
 # LANE_codex_LABEL="Codex"
 # LANE_codex_MODE="always"
@@ -70,12 +70,15 @@ MEM_MB_PER_WORKER=3000               # memory one worker roughly needs
 RESOURCE_MIN_BUDGET=3                # never squeeze the total below this ("the default is 3")
 #RESOURCE_PROBE_CMD='echo "16 2.5 48000"'  # override "<cores> <load5> <mem_avail_mb>" (tests, non-Linux)
 
-# --- Window-mode defaults (drain leftover quota before it expires) ---
-WINDOW_DAYS=3                        # activate when the reset is closer than this
-WINDOW_MAX_PCT=50                    # ...and usage is still below this percent (ENTRY gate
-                                     # only — once draining, the lane keeps going past it)
-DRAIN_STOP_PCT=97                    # stop the drain when the account reaches this
-MIN_CONCURRENCY=1                    # floor while a window lane is active
+# --- Window-mode defaults (pace follower) ---
+# The ideal line runs 0% right after the account's reset to 100% at the next one.
+# A window lane works whenever usage falls behind that line, and idles once it's
+# back on pace — all week long, not just before the reset.
+PACE_TOLERANCE_PCT=5                 # how far behind the line counts as "behind"
+                                     # (also your personal headroom: raise it to keep
+                                     # more slack for interactive use)
+CATCHUP_HOURS=4                      # close a deficit within roughly this many hours
+MIN_CONCURRENCY=1                    # floor while a window lane is catching up
 MAX_CONCURRENCY=6                    # ceiling per lane
 BURN_PCT_PER_WORKER_HOUR=2           # rough % of weekly quota one subagent burns per hour;
                                      # the pacer re-reads real usage each tick, so this
