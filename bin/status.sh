@@ -105,8 +105,8 @@ for id in ${LANES:-}; do
      total_done:([$prs[] | select(.headRefName|startswith("pilot-"+$id+"/"))] | length)}')")
 done
 
-# promotion state (written by promote.sh)
-read -r pw_count pw_ts 2>/dev/null <"$STATE_DIR/promotion-waiting" || { pw_count=0; pw_ts=0; }
+# promotion state (live commit count; last-run details written by promote.sh)
+pw_count=$(gh api "repos/$GH_REPO/compare/${STAGING_BRANCH:-staging}...${BASE_BRANCH:-main}" --jq .total_commits 2>/dev/null || echo 0)
 read -r pl_ts pl_outcome 2>/dev/null <"$STATE_DIR/promotion-last" || { pl_ts=0; pl_outcome=""; }
 p_active=false; [ -f "$STATE_DIR/promotion-active" ] && p_active=true
 promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "${pw_count:-0}" \
