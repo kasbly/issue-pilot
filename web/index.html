@@ -21,7 +21,7 @@
   .bar .pace { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--fg); opacity:.7; }
   .row { display:flex; justify-content:space-between; color:var(--dim); font-size:12px; }
   .drift { font-size:12px; margin-top:6px; }
-  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .dim{color:var(--dim)}
   table { width:100%; border-collapse:collapse; }
   td, th { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); font-size:13px; }
   th { color:var(--dim); font-weight:500; font-size:12px; }
@@ -36,6 +36,8 @@
 <h2>Queue &amp; refill</h2>
 <div class="cards" id="queue"></div>
 <div id="refill" class="drift" style="margin-top:8px"></div>
+<h2>Release</h2>
+<div class="cards" id="release"></div>
 <h2>Lanes</h2><div id="lanes"></div>
 <div id="resources" class="drift" style="margin-top:8px"></div>
 <h2>Working now</h2><div id="workers"></div>
@@ -96,13 +98,30 @@ async function refresh() {
   const lastR = r.last
     ? `last refill check ${fmtDur(now - r.last.ts)} ago — ${r.last.action === "ran" ? "scanner RAN" : "skipped"} (${esc(r.last.detail)}, threshold ${r.threshold})`
     : `no refill check recorded yet (threshold ${r.threshold ?? "?"})`;
-  const promo = s.promotion;
-  const promoTxt = !promo ? "" : promo.active
-    ? " · PROMOTION RUNNING"
-    : ` · promotion: ${promo.waiting}/${promo.threshold} commits waiting${promo.enabled ? "" : " (disabled)"}` +
-      (promo.last ? ` · last ${esc(promo.last.outcome)} ${fmtDur(now - promo.last.ts)} ago` : "");
   document.getElementById("refill").textContent =
-    lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "") + promoTxt;
+    lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "");
+
+  const promo = s.promotion;
+  document.getElementById("release").innerHTML = !promo ? "" : (() => {
+    const pctToGo = Math.min(100, 100 * promo.waiting / Math.max(promo.threshold, 1));
+    const state = promo.active
+      ? `<span class="ok">PROMOTING NOW — dev → staging → main</span>`
+      : promo.enabled
+        ? (promo.waiting >= promo.threshold
+            ? `<span class="warn">threshold reached — next hourly check promotes</span>`
+            : `armed · promotes automatically at ${promo.threshold} commits`)
+        : `<span class="dim">disabled — manual only (issue-pilot promote --now)</span>`;
+    const last = promo.last
+      ? `last release: ${esc(promo.last.outcome)} · ${fmtDur(now - promo.last.ts)} ago`
+      : "no release recorded yet";
+    return `<div class="card">
+      <span class="name">production promotion</span><span class="kind">${promo.enabled ? "auto" : "manual"}</span>
+      <div class="big">${promo.waiting} <span style="font-size:14px;color:var(--dim)">/ ${promo.threshold} commits</span></div>
+      <div class="bar"><div class="fill" style="width:${pctToGo}%; background:${promo.active ? "var(--ok)" : "var(--accent)"}"></div></div>
+      <div class="drift">${state}</div>
+      <div class="row" style="margin-top:6px"><span>${last}</span></div>
+    </div>`;
+  })();
 
   const lanes = s.lanes || [];
   document.getElementById("lanes").innerHTML = lanes.length

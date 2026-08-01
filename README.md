@@ -140,9 +140,14 @@ commits sitting on `BASE_BRANCH` that haven't reached `STAGING_BRANCH`. Once
 production through PRs — `base → staging → prod`, merge commits only, one-way —
 **fixing CI as it goes** (repairs land on the base branch first, then get
 cherry-picked onto the frozen candidate). It verifies ancestry and deployment, then
-reports. Manual run: `issue-pilot promote --now`. Start manual for the first few
-releases; enable the timer once you trust the reports. If you can, reserve CI
-runners for promotion jobs so releases never queue behind the worker lanes.
+reports. The agent runs in **verified rounds**: sessions can't wait out CI, so the
+loop relaunches them until the release is *provably* complete (staging contained in
+prod, no promotion PR open, a promotion PR merged this run) — the agent's exit code
+is never trusted. The status page shows a Release card: commits waiting vs
+threshold, live PROMOTING state, and the last release outcome. Manual mode: leave
+`PROMOTE_ENABLED=false` and run `issue-pilot promote --now` yourself — recommended
+for your first release or two. If you can, reserve CI runners for promotion jobs
+(route on base = staging/main) so releases never queue behind the worker lanes.
 
 ## Status page
 
