@@ -30,7 +30,8 @@ for a in "${ACCTS[@]}"; do
   else
     CODEX_NAME=$name
     # newest codex session file's last rate_limits snapshot (stale between runs)
-    f=$(ls -t "$path"/*/*/*/*.jsonl 2>/dev/null | head -1)
+    # || true: with many session files, head's early exit SIGPIPEs ls under pipefail
+    f=$(ls -t "$path"/*/*/*/*.jsonl 2>/dev/null | head -1 || true)
     if [ -n "$f" ]; then
       snap=$(grep -o '"rate_limits":{[^}]*}[^}]*}[^}]*}' "$f" | tail -1)
       used=$(grep -o '"used_percent":[0-9.]*' <<<"$snap" | head -1 | cut -d: -f2)
