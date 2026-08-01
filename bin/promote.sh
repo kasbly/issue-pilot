@@ -29,14 +29,42 @@ trap 'rm -f "$STATE_DIR/promotion-active"' EXIT
 [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: PROMOTION started ($waiting commits waiting)" bash -c "$NOTIFY_CMD" || true; }
 
 start=$(date +%s)
-if GH_REPO=$GH_REPO BASE_BRANCH="${BASE_BRANCH:-main}" \
-   STAGING_BRANCH="$staging" PROD_BRANCH="${PROD_BRANCH:-main}" \
-   REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
-   bash -c "$PROMOTE_CMD" >>"$STATE_DIR/promotion.log" 2>&1; then
-  outcome="succeeded"
-else
-  outcome="FAILED"
-fi
+start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+prod="${PROD_BRANCH:-main}"
+
+# An agent session may exit early ("waiting for CI" is not a thing a one-shot
+# session can do). So: run in rounds, and only VERIFIED state counts as done —
+# never the agent's exit code. Done means: staging is contained in prod, no
+# promotion PR is still open, and at least one promotion PR merged after we
+# started (guards against declaring victory without having done anything).
+promotion_done() {
+  local contained open merged
+  contained=$(gh api "repos/$GH_REPO/compare/$prod...$staging" --jq .status 2>/dev/null || echo unknown)
+  case "$contained" in identical|behind) ;; *) return 1 ;; esac
+  open=$(gh pr list -R "$GH_REPO" --state open --json baseRefName,headRefName --jq \
+    "[.[] | select((.baseRefName == \"$staging\" or .baseRefName == \"$prod\")
+      and ((.headRefName | startswith(\"promotion/\")) or (.headRefName | startswith(\"promote/\"))
+           or .headRefName == \"${BASE_BRANCH:-main}\" or .headRefName == \"$staging\"))] | length")
+  [ "${open:-1}" -eq 0 ] || return 1
+  merged=$(gh pr list -R "$GH_REPO" --state merged --limit 40 --json baseRefName,mergedAt --jq \
+    "[.[] | select((.baseRefName == \"$staging\" or .baseRefName == \"$prod\") and .mergedAt >= \"$start_iso\")] | length")
+  [ "${merged:-0}" -ge 1 ]
+}
+
+outcome="FAILED"
+rounds="${PROMOTE_MAX_ROUNDS:-8}"
+for round in $(seq 1 "$rounds"); do
+  log "promotion round $round/$rounds"
+  GH_REPO=$GH_REPO BASE_BRANCH="${BASE_BRANCH:-main}" \
+    STAGING_BRANCH="$staging" PROD_BRANCH="$prod" \
+    REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
+    bash -c "$PROMOTE_CMD" >>"$STATE_DIR/promotion.log" 2>&1 \
+    || log "round $round: agent exited non-zero"
+  if promotion_done; then outcome="succeeded"; break; fi
+  log "round $round: promotion not verified complete — waiting $(( ${PROMOTE_ROUND_WAIT:-600} / 60 ))m for CI, then relaunching"
+  sleep "${PROMOTE_ROUND_WAIT:-600}"
+done
+
 echo "$(date +%s) $outcome" >"$STATE_DIR/promotion-last"
 log "promotion $outcome after $(( ($(date +%s) - start) / 60 ))m (details: state/promotion.log)"
 [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: promotion $outcome" bash -c "$NOTIFY_CMD" || true; }
