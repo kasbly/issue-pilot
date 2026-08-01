@@ -73,7 +73,7 @@ open_total=$(gh api "search/issues?q=repo:$GH_REPO+is:issue+is:open&per_page=1" 
 next_refill=0
 nr=$(systemctl show issue-pilot-refill.timer -p NextElapseUSecRealtime --value 2>/dev/null || true)
 [ -n "$nr" ] && [ "$nr" != "n/a" ] && next_refill=$(date -d "$nr" +%s 2>/dev/null || echo 0)
-read -r rl_ts rl_action rl_detail <"$STATE_DIR/refill-last" 2>/dev/null || { rl_ts=0; rl_action=""; rl_detail=""; }
+read -r rl_ts rl_action rl_detail 2>/dev/null <"$STATE_DIR/refill-last" || { rl_ts=0; rl_action=""; rl_detail=""; }
 refill=$(jq -n --argjson ready "$ready_count" --argjson threshold "${REFILL_THRESHOLD:-0}" \
   --argjson open "$open_total" --argjson next "$next_refill" \
   --argjson last_ts "${rl_ts:-0}" --arg last_action "${rl_action:-}" --arg last_detail "${rl_detail:-}" \
@@ -105,8 +105,8 @@ for id in ${LANES:-}; do
 done
 
 # promotion state (written by promote.sh)
-read -r pw_count pw_ts <"$STATE_DIR/promotion-waiting" 2>/dev/null || { pw_count=0; pw_ts=0; }
-read -r pl_ts pl_outcome <"$STATE_DIR/promotion-last" 2>/dev/null || { pl_ts=0; pl_outcome=""; }
+read -r pw_count pw_ts 2>/dev/null <"$STATE_DIR/promotion-waiting" || { pw_count=0; pw_ts=0; }
+read -r pl_ts pl_outcome 2>/dev/null <"$STATE_DIR/promotion-last" || { pl_ts=0; pl_outcome=""; }
 p_active=false; [ -f "$STATE_DIR/promotion-active" ] && p_active=true
 promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "${pw_count:-0}" \
   --argjson threshold "${PROMOTE_AFTER_COMMITS:-100}" --argjson active "$p_active" \
@@ -114,7 +114,7 @@ promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "$
   '{enabled:($enabled=="true"), waiting:$waiting, threshold:$threshold, active:$active,
     last:(if $last_ts==0 then null else {ts:$last_ts, outcome:$last_outcome} end)}')
 
-read -r rb_budget rb_load rb_cores rb_mem <"$STATE_DIR/resource-budget" 2>/dev/null || { rb_budget=0; rb_load=0; rb_cores=0; rb_mem=0; }
+read -r rb_budget rb_load rb_cores rb_mem 2>/dev/null <"$STATE_DIR/resource-budget" || { rb_budget=0; rb_load=0; rb_cores=0; rb_mem=0; }
 resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" \
   --argjson cores "${rb_cores:-0}" --argjson mem_mb "${rb_mem:-0}" \
   '{budget:$budget, load5:$load, cores:$cores, mem_mb:$mem_mb}')
