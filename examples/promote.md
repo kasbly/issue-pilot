@@ -11,6 +11,12 @@ EXPECT CI TO FAIL. Fixing CI is most of this job, not an exception. Never stop a
 red check — diagnose it from the live job logs and repair it. Only a genuine safety
 blocker (secrets, data loss, irreversible ambiguity) justifies stopping, with evidence.
 
+FIRST ACTION every session, before any other analysis: if a promotion PR already
+exists (base $STAGING_BRANCH or $PROD_BRANCH) whose exact head SHA has ALL checks
+completed green/neutral/skipped and is MERGEABLE, merge it immediately (merge
+commit), then continue from there. Sessions relaunch in rounds — never re-derive
+state before harvesting an already-green merge.
+
 CANDIDATE DISCIPLINE:
 1. Fetch all refs; record the exact SHA of `origin/$BASE_BRANCH` — that is the frozen
    release candidate. Never reset it to the moving branch; other agents merge into
