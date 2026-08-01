@@ -96,8 +96,13 @@ async function refresh() {
   const lastR = r.last
     ? `last refill check ${fmtDur(now - r.last.ts)} ago — ${r.last.action === "ran" ? "scanner RAN" : "skipped"} (${esc(r.last.detail)}, threshold ${r.threshold})`
     : `no refill check recorded yet (threshold ${r.threshold ?? "?"})`;
+  const promo = s.promotion;
+  const promoTxt = !promo ? "" : promo.active
+    ? " · PROMOTION RUNNING"
+    : ` · promotion: ${promo.waiting}/${promo.threshold} commits waiting${promo.enabled ? "" : " (disabled)"}` +
+      (promo.last ? ` · last ${esc(promo.last.outcome)} ${fmtDur(now - promo.last.ts)} ago` : "");
   document.getElementById("refill").textContent =
-    lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "");
+    lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "") + promoTxt;
 
   const lanes = s.lanes || [];
   document.getElementById("lanes").innerHTML = lanes.length

@@ -1,0 +1,10 @@
+[Unit]
+Description=issue-pilot: check hourly whether enough commits wait for promotion
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

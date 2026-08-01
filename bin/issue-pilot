@@ -21,6 +21,7 @@ Usage: issue-pilot <command> [args]
   refill        run the queue-refill check once
   pace          recompute lane concurrency once
   status        refresh web/status.json once
+  promote       run the release check once (--now forces past the gates)
   dispatch      run the dispatcher loop in the foreground (systemd runs this)
   version       print the package version
 
@@ -69,7 +70,7 @@ EOF
     [ "${BASH_VERSINFO[0]}" -ge 4 ] && echo "ok      bash ${BASH_VERSION%%(*}" || echo "note    bash 3.x — dispatch needs bash 4+ (fine on Linux)"
     exit $ok
     ;;
-  refill|pace|status|dispatch)
+  refill|pace|status|dispatch|promote)
     exec bash "$PKG_DIR/bin/$cmd.sh" "$@"
     ;;
   version)

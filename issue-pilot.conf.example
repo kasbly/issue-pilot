@@ -87,6 +87,21 @@ FIVE_HOUR_THROTTLE_PCT=85            # when the account's 5-hour session window 
 FIVE_HOUR_THROTTLE_CAP=1             # …cap the lane here until it resets (Claude subscriptions
                                      # have BOTH a weekly and a 5-hour limit)
 
+# --- Promote (release loop: BASE_BRANCH → STAGING_BRANCH → PROD_BRANCH) ---
+# When enough commits have piled up on BASE_BRANCH, one strong agent session
+# promotes them to production through PRs, FIXING CI along the way (expect CI to
+# fail — that is most of the job). Merge commits only, one-way direction, frozen
+# candidate. See examples/promote.md. Manual run: `issue-pilot promote --now`.
+PROMOTE_ENABLED=false                # hourly timer acts only when true (and AUTO_MERGE=true)
+PROMOTE_AFTER_COMMITS=100            # promote once this many commits wait BASE→STAGING
+STAGING_BRANCH="staging"
+PROD_BRANCH="main"
+# Use your best model here — promotions are rare and high-stakes:
+PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort max --dangerously-skip-permissions'
+# Tip: reserve CI runners for promotion PRs (route jobs whose base is
+# STAGING_BRANCH/PROD_BRANCH, or promote/* heads, to a dedicated runner label) so
+# releases never queue behind the worker lanes' CI.
+
 # --- Notifications ---
 # Runs whenever a lane's concurrency changes. Gets $MSG.
 NOTIFY_CMD=""

@@ -104,6 +104,16 @@ for id in ${LANES:-}; do
      total_done:([$prs[] | select(.headRefName|startswith("pilot-"+$id+"/"))] | length)}')")
 done
 
+# promotion state (written by promote.sh)
+read -r pw_count pw_ts <"$STATE_DIR/promotion-waiting" 2>/dev/null || { pw_count=0; pw_ts=0; }
+read -r pl_ts pl_outcome <"$STATE_DIR/promotion-last" 2>/dev/null || { pl_ts=0; pl_outcome=""; }
+p_active=false; [ -f "$STATE_DIR/promotion-active" ] && p_active=true
+promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "${pw_count:-0}" \
+  --argjson threshold "${PROMOTE_AFTER_COMMITS:-100}" --argjson active "$p_active" \
+  --argjson last_ts "${pl_ts:-0}" --arg last_outcome "${pl_outcome:-}" \
+  '{enabled:($enabled=="true"), waiting:$waiting, threshold:$threshold, active:$active,
+    last:(if $last_ts==0 then null else {ts:$last_ts, outcome:$last_outcome} end)}')
+
 read -r rb_budget rb_load rb_cores rb_mem <"$STATE_DIR/resource-budget" 2>/dev/null || { rb_budget=0; rb_load=0; rb_cores=0; rb_mem=0; }
 resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" \
   --argjson cores "${rb_cores:-0}" --argjson mem_mb "${rb_mem:-0}" \
@@ -114,8 +124,9 @@ join_json "${acc_rows[@]}" | jq \
   --argjson workers "$(join_json "${proc_rows[@]}")" \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
-  --argjson refill "$refill" --argjson throughput "$throughput" \
+  --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, accounts:., lanes:$lanes, workers:$workers,
-    resources:$resources, refill:$refill, throughput:$throughput, claimed:$claimed, recent_prs:$prs}' \
+    resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
+    claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

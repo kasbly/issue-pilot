@@ -131,6 +131,19 @@ Every knob has a global default and a per-lane `LANE_<id>_…` override. Concurr
 changes fire `NOTIFY_CMD` (point it at ntfy/Telegram/Slack). A running batch keeps
 the concurrency it started with; changes apply from the next batch.
 
+## Promote — the release loop (optional)
+
+With `PROMOTE_ENABLED=true` (requires `AUTO_MERGE=true`), an hourly timer counts the
+commits sitting on `BASE_BRANCH` that haven't reached `STAGING_BRANCH`. Once
+`PROMOTE_AFTER_COMMITS` pile up, one strong agent session
+([examples/promote.md](examples/promote.md)) promotes the frozen candidate to
+production through PRs — `base → staging → prod`, merge commits only, one-way —
+**fixing CI as it goes** (repairs land on the base branch first, then get
+cherry-picked onto the frozen candidate). It verifies ancestry and deployment, then
+reports. Manual run: `issue-pilot promote --now`. Start manual for the first few
+releases; enable the timer once you trust the reports. If you can, reserve CI
+runners for promotion jobs so releases never queue behind the worker lanes.
+
 ## Status page
 
 `issue-pilot-web.service` serves `web/` (bind it to a private/VPN interface — it
