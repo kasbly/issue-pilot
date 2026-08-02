@@ -184,7 +184,7 @@ async function refresh() {
         <div class="controls"><button class="primary" onclick="newCampaign()">Start campaign</button>
         <button onclick="document.getElementById('newCamp').style.display='none'">Cancel</button></div></div>`;
     if (!camp || !camp.goal || camp.status === "done") {
-      const doneNote = c && camp.goal && camp.status === "done"
+      const doneNote = camp && camp.goal && camp.status === "done"
         ? `<div class="drift ok">last campaign achieved: ${esc(camp.goal.split("\n")[0])}</div>` : "";
       return `<h2>Campaign</h2><div class="card">${doneNote}
         <div class="empty">no active campaign — give the system a goal and it works toward it until done</div>
