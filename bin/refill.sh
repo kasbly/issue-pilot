@@ -17,6 +17,22 @@ flock -n 9 || { log "refill already running, skipping"; exit 0; }
 
 log "queue low — running scanner"
 cd "$ISSUE_PILOT_HOME"
+
+# strict round-robin over scanning dimensions: each refill runs the NEXT one in
+# SCANNER_ROTATION and exports it as $SCANNER_DIMENSION for the prompt template
+if [ -n "${SCANNER_ROTATION:-}" ]; then
+  last=$(cat "$STATE_DIR/last-scanner" 2>/dev/null || true)
+  next=""; prev=""
+  for d in $SCANNER_ROTATION; do
+    [ -z "$next" ] && [ "$prev" = "$last" ] && [ -n "$last" ] && next=$d
+    prev=$d
+  done
+  [ -n "$next" ] || next=${SCANNER_ROTATION%% *}
+  export SCANNER_DIMENSION=$next
+  echo "$next" >"$STATE_DIR/last-scanner"
+  log "scanner rotation: dimension=$next"
+fi
+
 bash -c "$SCANNER_CMD"
 after=$(ready_issues | wc -l | tr -d ' ')
 echo "$(date +%s) ran queue=$after" >"$STATE_DIR/refill-last"

@@ -15,6 +15,9 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 # Example: SCANNER_CMD='claude -p "$(cat examples/scanner.md)" --model opus --effort high --dangerously-skip-permissions'
 #SCANNER_MODEL=""                    # shown on the status page; keep in sync with SCANNER_CMD flags
 #SCANNER_EFFORT=""
+# Optional strict rotation: each refill runs the NEXT dimension in this list and
+# exports it as $SCANNER_DIMENSION (use envsubst in SCANNER_CMD's prompt template):
+#SCANNER_ROTATION="bugs security performance i18n product-gaps"
 
 # --- Batches ---
 POLL_SECS=60                         # dispatcher poll interval
