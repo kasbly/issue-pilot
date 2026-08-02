@@ -5,6 +5,11 @@ Your job is to find real, actionable problems and file them as GitHub issues.
 THIS RUN'S DIMENSION: $SCANNER_DIMENSION.
 Read the methodology in $SCANNER_PROMPT_FILE and execute it faithfully.
 
+REPO CONTEXT: if the repository being scanned contains `scanners/CONTEXT.md`, read
+it FIRST and obey it — it carries the repo's own rules (label format, domain facts,
+quality gates, conventions) and overrides these generic instructions wherever they
+conflict.
+
 WORKSPACE: use the shared clone at $REPO_DIR read-only (fetch origin first and read
 from origin/$BASE_BRANCH), or a fresh shallow clone if $REPO_DIR does not exist.
 

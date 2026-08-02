@@ -7,6 +7,9 @@ $CAMPAIGN_GOAL
 Your job each run is one honest gap analysis: compare the CURRENT state of the
 product against this goal, and turn only the real gaps into GitHub issues.
 
+0. If the repository contains `scanners/CONTEXT.md`, read it first and obey it —
+   repo-specific label formats, domain facts, and conventions override generic
+   guidance.
 1. Inspect reality, not memory. Fetch origin and read the current code at
    origin/$BASE_BRANCH in the shared clone at $REPO_DIR (read-only). Review what
    already merged for this campaign: `gh pr list -R $GH_REPO --state merged

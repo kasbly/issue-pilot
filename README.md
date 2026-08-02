@@ -80,7 +80,12 @@ under `examples/` are pure prompts — no headers or commentary — because head
 agents treat anything that reads like documentation as an invitation to discuss
 instead of act. Keep them that way when you adapt them.
 
-- **`SCANNER_CMD`** — generates issues. Start from [examples/scanner.md](examples/scanner.md):
+- **`SCANNER_CMD`** — generates issues. Eight built-in scanner methodologies ship in
+  [scanners/](scanners/) (bugs, security, performance, deps, i18n, a11y, product-gap,
+  test-gaps); your working dir's `scanners/` overrides them by filename, and a
+  `scanners/CONTEXT.md` **in the scanned repo** injects repo-specific rules (label
+  format, domain facts, quality gates) into every run — methodology stays generic,
+  tuning lives with your code. Start from [examples/scanner.md](examples/scanner.md):
   `claude -p "$(cat examples/scanner.md)"`. Wave-size tip: many smaller waves beat one
   giant dump — quality stays high and usage spreads across the week, which is exactly
   what the pacer wants.
