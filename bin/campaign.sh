@@ -52,6 +52,7 @@ case "${1:-status}" in
       CAMPAIGN_LABEL="${CAMPAIGN_LABEL:-campaign}" \
       CAMPAIGN_MAX_ISSUES="${CAMPAIGN_MAX_ISSUES:-10}" \
       CAMPAIGN_BROWSER_URL="${CAMPAIGN_BROWSER_URL:-}" \
+      CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}" \
       CAMPAIGN_STATE_DIR="$CDIR"
     bash -c "$CAMPAIGN_CMD" >>"$CDIR/campaign.log" 2>&1 || log "campaign agent exited non-zero"
 

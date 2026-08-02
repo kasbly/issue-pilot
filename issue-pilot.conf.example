@@ -102,6 +102,10 @@ CAMPAIGN_LABEL="campaign"
 CAMPAIGN_MAX_ISSUES=10               # gaps filed per analysis round
 CAMPAIGN_MIN_OPEN=3                  # re-analyze only when open campaign issues drop to this
 #CAMPAIGN_BROWSER_URL=""             # e.g. your staging URL — enables real-browser validation
+# Staging login for browser validation. Use a DEDICATED TEST ACCOUNT — this file is
+# plaintext on the box, and agents screenshot logged-in pages into issues:
+#CAMPAIGN_LOGIN_EMAIL=""
+#CAMPAIGN_LOGIN_PASSWORD=""
 CAMPAIGN_CMD='claude -p "$(envsubst < examples/campaign.md)" --model opus --effort high --dangerously-skip-permissions'
 
 # --- Promote (release loop: BASE_BRANCH → STAGING_BRANCH → PROD_BRANCH) ---

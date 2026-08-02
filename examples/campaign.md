@@ -18,6 +18,10 @@ product against this goal, and turn only the real gaps into GitHub issues.
    definition of done against what actually renders. Screenshot evidence beats
    speculation. If no browser URL is set, validate at the code level: components,
    styles, tests.
+   If $CAMPAIGN_LOGIN_EMAIL is set, sign in first (the app's sign-in page) with
+   $CAMPAIGN_LOGIN_EMAIL / $CAMPAIGN_LOGIN_PASSWORD, and reuse the session for all
+   pages. NEVER print, log, or paste the password anywhere — not in issues, not in
+   your assessment, not in screenshots of the login form.
 3. Write your assessment to $CAMPAIGN_STATE_DIR/last-assessment.md: 3–6 plain
    sentences — what now works, what is still missing, how close the goal is.
 4. File the most important remaining gaps as issues — at most $CAMPAIGN_MAX_ISSUES,
