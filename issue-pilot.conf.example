@@ -10,8 +10,11 @@ CLAIM_LABEL="in-pilot"               # added when a lane picks an issue up
 # --- Refill (issue generation) ---
 REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
 # Command that generates new issues (your scanner pipeline). Runs from ISSUE_PILOT_HOME.
+# Issue quality is the foundation of the whole loop — use a strong model here.
 SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
-# Example: SCANNER_CMD='claude -p "$(cat examples/scanner.md)" --dangerously-skip-permissions'
+# Example: SCANNER_CMD='claude -p "$(cat examples/scanner.md)" --model opus --effort high --dangerously-skip-permissions'
+#SCANNER_MODEL=""                    # shown on the status page; keep in sync with SCANNER_CMD flags
+#SCANNER_EFFORT=""
 
 # --- Batches ---
 POLL_SECS=60                         # dispatcher poll interval
@@ -98,6 +101,9 @@ STAGING_BRANCH="staging"
 PROD_BRANCH="main"
 # Use your best model here — promotions are rare and high-stakes:
 PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort max --dangerously-skip-permissions'
+# Optional deterministic post-release check; non-zero exit marks the release
+# "merged, runtime verification FAILED" instead of succeeded:
+#PROMOTE_VERIFY_CMD='curl -sf https://api.example.com/healthz >/dev/null && curl -sfL https://example.com >/dev/null'
 # Tip: reserve CI runners for promotion PRs (route jobs whose base is
 # STAGING_BRANCH/PROD_BRANCH, or promote/* heads, to a dedicated runner label) so
 # releases never queue behind the worker lanes' CI.

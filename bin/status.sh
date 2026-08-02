@@ -77,8 +77,10 @@ nr=$(systemctl show issue-pilot-refill.timer -p NextElapseUSecRealtime --value 2
 read -r rl_ts rl_action rl_detail 2>/dev/null <"$STATE_DIR/refill-last" || { rl_ts=0; rl_action=""; rl_detail=""; }
 refill=$(jq -n --argjson ready "$ready_count" --argjson threshold "${REFILL_THRESHOLD:-0}" \
   --argjson open "$open_total" --argjson next "$next_refill" \
+  --arg model "${SCANNER_MODEL:-}" --arg effort "${SCANNER_EFFORT:-}" \
   --argjson last_ts "${rl_ts:-0}" --arg last_action "${rl_action:-}" --arg last_detail "${rl_detail:-}" \
   '{ready:$ready, threshold:$threshold, open_issues:$open, next_run:(if $next==0 then null else $next end),
+    scanner_model:(if $model=="" then null else $model end), scanner_effort:(if $effort=="" then null else $effort end),
     last:(if $last_ts==0 then null else {ts:$last_ts, action:$last_action, detail:$last_detail} end)}')
 
 # merged-PR throughput (server-local calendar days; mergedAt is UTC — close enough for a scoreboard)

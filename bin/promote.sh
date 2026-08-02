@@ -65,6 +65,13 @@ for round in $(seq 1 "$rounds"); do
   sleep "${PROMOTE_ROUND_WAIT:-600}"
 done
 
+# optional deterministic runtime check (endpoint probes etc.) after a verified merge
+if [ "$outcome" = "succeeded" ] && [ -n "${PROMOTE_VERIFY_CMD:-}" ]; then
+  if ! bash -c "$PROMOTE_VERIFY_CMD" >>"$STATE_DIR/promotion.log" 2>&1; then
+    outcome="merged, runtime verification FAILED"
+  fi
+fi
+
 echo "$(date +%s) $outcome" >"$STATE_DIR/promotion-last"
 log "promotion $outcome after $(( ($(date +%s) - start) / 60 ))m (details: state/promotion.log)"
 [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: promotion $outcome" bash -c "$NOTIFY_CMD" || true; }
