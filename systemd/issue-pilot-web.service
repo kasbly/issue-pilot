@@ -1,10 +1,12 @@
 [Unit]
-Description=issue-pilot: status page web server
+Description=issue-pilot: status page + control API
 After=network-online.target
 
 [Service]
-# Bind to a private interface (VPN/Tailscale IP) — the page exposes usage data.
-ExecStart=/usr/bin/python3 -m http.server 9124 --bind 127.0.0.1 --directory /opt/issue-pilot/web
+# Bind to a private interface (VPN/Tailscale IP) — the page exposes usage data and
+# the API changes configuration.
+Environment=ISSUE_PILOT_HOME=/opt/issue-pilot
+ExecStart=/usr/bin/python3 /opt/issue-pilot/bin/webserver.py 127.0.0.1 9124
 Restart=always
 RestartSec=5
 

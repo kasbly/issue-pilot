@@ -1,7 +1,8 @@
 # shared bootstrap, sourced by every script
 set -euo pipefail
 
-ISSUE_PILOT_HOME="${ISSUE_PILOT_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PKG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" # read-only code assets (scanners/, examples/)
+ISSUE_PILOT_HOME="${ISSUE_PILOT_HOME:-$PKG_DIR}"
 ISSUE_PILOT_CONF="${ISSUE_PILOT_CONF:-$ISSUE_PILOT_HOME/issue-pilot.conf}"
 
 [ -f "$ISSUE_PILOT_CONF" ] || { echo "issue-pilot: config not found: $ISSUE_PILOT_CONF — run 'issue-pilot init <dir>' and set ISSUE_PILOT_HOME=<dir> (or copy issue-pilot.conf.example)" >&2; exit 1; }

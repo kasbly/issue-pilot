@@ -1,0 +1,10 @@
+[Unit]
+Description=issue-pilot: campaign tick every 2 hours
+
+[Timer]
+OnCalendar=0/2:30
+RandomizedDelaySec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

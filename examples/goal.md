@@ -11,6 +11,8 @@ every PR open for human review.
 QUEUE: open issues labeled `$READY_LABEL` and NOT labeled `$CLAIM_LABEL`, $ISSUE_ORDER
 first:
 `gh issue list -R $GH_REPO --state open --label "$READY_LABEL" --search "sort:created-$SORT_DIR -label:$CLAIM_LABEL" --json number,title`
+If `$CAMPAIGN_LABEL` is non-empty, issues carrying that label are the operator's
+current goal — always take them before the general queue.
 
 BASE CHECKOUT: keep ONE shared clone at `$REPO_DIR` — clone $GH_REPO there first if
 it does not exist. Before every batch and every new issue, `git -C $REPO_DIR fetch origin`.

@@ -117,6 +117,45 @@ promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "$
   '{enabled:($enabled=="true"), waiting:$waiting, threshold:$threshold, active:$active,
     last:(if $last_ts==0 then null else {ts:$last_ts, outcome:$last_outcome} end)}')
 
+# scanners: union of rotation entries and library files; enabled = in rotation
+scan_rows=()
+rot=" ${SCANNER_ROTATION:-} "
+peek_next=$(cat "$STATE_DIR/next-scanner" 2>/dev/null || true)
+all_dims=$( { for d in ${SCANNER_ROTATION:-}; do echo "$d"; done
+              for base in "$ISSUE_PILOT_HOME/scanners" "$PKG_DIR/scanners"; do
+                [ -d "$base" ] && for f in "$base"/*.md; do [ -e "$f" ] && basename "$f" .md; done
+              done; } | sort -u )
+for d in $all_dims; do
+  enabled=false; case "$rot" in *" $d "*) enabled=true ;; esac
+  desc=""
+  for base in "$ISSUE_PILOT_HOME/scanners" "$PKG_DIR/scanners"; do
+    if [ -f "$base/$d.md" ]; then
+      desc=$(head -1 "$base/$d.md" | sed 's/^DIMENSION: *[^—-]*[—-] *//')
+      break
+    fi
+  done
+  scan_rows+=("$(jq -n --arg name "$d" --argjson enabled "$enabled" --arg desc "$desc" \
+    --argjson next "$([ "$d" = "$peek_next" ] && echo true || echo false)" \
+    '{name:$name, enabled:$enabled, desc:$desc, queued_next:$next}')")
+done
+
+# campaign state
+CDIR="$STATE_DIR/campaign"
+c_goal=$(cat "$CDIR/goal.md" 2>/dev/null || true)
+c_status=$(cat "$CDIR/status" 2>/dev/null || true)
+c_assess=$(cat "$CDIR/last-assessment.md" 2>/dev/null || true)
+c_open=0; c_closed=0
+if [ -n "$c_goal" ]; then
+  c_open=$(gh issue list -R "$GH_REPO" --state open --label "${CAMPAIGN_LABEL:-campaign}" --json number --jq length 2>/dev/null || echo 0)
+  c_closed=$(gh issue list -R "$GH_REPO" --state closed --label "${CAMPAIGN_LABEL:-campaign}" --limit 200 --json number --jq length 2>/dev/null || echo 0)
+fi
+campaign=$(jq -n --arg goal "$c_goal" --arg status "$c_status" --arg assess "$c_assess" \
+  --argjson open "${c_open:-0}" --argjson closed "${c_closed:-0}" \
+  --arg history "$(tail -3 "$CDIR/history.log" 2>/dev/null || true)" \
+  '{goal:(if $goal=="" then null else $goal end), status:(if $status=="" then null else $status end),
+    assessment:(if $assess=="" then null else $assess end), open:$open, closed:$closed,
+    history:(if $history=="" then null else $history end)}')
+
 read -r rb_budget rb_load rb_cores rb_mem 2>/dev/null <"$STATE_DIR/resource-budget" || { rb_budget=0; rb_load=0; rb_cores=0; rb_mem=0; }
 resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" \
   --argjson cores "${rb_cores:-0}" --argjson mem_mb "${rb_mem:-0}" \
@@ -128,8 +167,9 @@ join_json "${acc_rows[@]}" | jq \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
+  --argjson scanners "$(join_json "${scan_rows[@]}")" --argjson campaign "$campaign" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, accounts:., lanes:$lanes, workers:$workers,
     resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
-    claimed:$claimed, recent_prs:$prs}' \
+    scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

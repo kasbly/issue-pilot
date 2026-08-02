@@ -93,6 +93,17 @@ FIVE_HOUR_THROTTLE_PCT=85            # when the account's 5-hour session window 
 FIVE_HOUR_THROTTLE_CAP=1             # …cap the lane here until it resets (Claude subscriptions
                                      # have BOTH a weekly and a 5-hour limit)
 
+# --- Campaign (goal loop: state a goal, the system works toward it until done) ---
+# `issue-pilot campaign set "<goal>"` starts one (one campaign at a time). Every
+# tick, a gap-analysis agent compares reality against the goal, files issues for
+# what's missing (labeled CAMPAIGN_LABEL — lanes take these first), and touches
+# state/campaign/achieved when the goal verifiably holds. See examples/campaign.md.
+CAMPAIGN_LABEL="campaign"
+CAMPAIGN_MAX_ISSUES=10               # gaps filed per analysis round
+CAMPAIGN_MIN_OPEN=3                  # re-analyze only when open campaign issues drop to this
+#CAMPAIGN_BROWSER_URL=""             # e.g. your staging URL — enables real-browser validation
+CAMPAIGN_CMD='claude -p "$(envsubst < examples/campaign.md)" --model opus --effort high --dangerously-skip-permissions'
+
 # --- Promote (release loop: BASE_BRANCH → STAGING_BRANCH → PROD_BRANCH) ---
 # When enough commits have piled up on BASE_BRANCH, one strong agent session
 # promotes them to production through PRs, FIXING CI along the way (expect CI to

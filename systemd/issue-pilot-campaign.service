@@ -1,0 +1,10 @@
+[Unit]
+Description=issue-pilot: campaign gap-analysis tick
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=ISSUE_PILOT_HOME=/opt/issue-pilot
+ExecStart=/usr/bin/env bash /opt/issue-pilot/bin/campaign.sh tick
+TimeoutStartSec=4h

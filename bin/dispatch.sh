@@ -43,7 +43,7 @@ while true; do
         ISSUE_ORDER="${ISSUE_ORDER:-oldest}" SORT_DIR=$sort_dir \
         READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL \
         REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
-        LANE_NAME="$label" LANE_SLUG="pilot-$id" \
+        LANE_NAME="$label" LANE_SLUG="pilot-$id" CAMPAIGN_LABEL="${CAMPAIGN_LABEL:-}" \
         setsid bash -c "$(lane_get "$id" CMD 'echo "lane has no CMD configured" >&2; exit 1')" \
         >>"$STATE_DIR/batch-$id.log" 2>&1 &
       lane_pid[$id]=$! # setsid: the batch leads its own process group, so a lane

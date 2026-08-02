@@ -28,18 +28,37 @@
   a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
   .pill { display:inline-block; border-radius:99px; padding:1px 10px; font-size:12px; border:1px solid var(--line); }
   .empty { color:var(--dim); padding:10px 0; }
+  button { background:#232836; color:var(--fg); border:1px solid var(--line); border-radius:8px;
+           padding:5px 12px; font:inherit; font-size:12px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#0b0d12; font-weight:600; border:none; }
+  .toggle { width:38px; height:20px; border-radius:99px; background:#2a2f3c; border:1px solid var(--line);
+            position:relative; cursor:pointer; display:inline-block; vertical-align:middle; }
+  .toggle::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px;
+                   border-radius:50%; background:var(--dim); transition:all .15s; }
+  .toggle.on { background:rgba(76,195,138,.25); border-color:var(--ok); }
+  .toggle.on::after { left:20px; background:var(--ok); }
+  .quote { border-left:3px solid var(--line); padding:6px 12px; color:var(--dim); font-size:12px; margin:10px 0; white-space:pre-wrap; }
+  textarea { width:100%; background:#0a0c10; color:var(--fg); border:1px solid var(--line);
+             border-radius:8px; padding:8px; font:inherit; font-size:13px; }
+  .controls { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--accent);
+           color:#0b0d12; padding:8px 18px; border-radius:99px; font-weight:600; display:none; z-index:9; }
 </style>
 
 <h1>issue-pilot <span id="dispatch" class="pill"></span></h1>
 <div id="meta"></div>
+<div id="campaignSec"></div>
 <div class="cards" id="accounts"></div>
 <h2>Queue &amp; refill</h2>
 <div class="cards" id="queue"></div>
 <div id="refill" class="drift" style="margin-top:8px"></div>
 <h2>Release</h2>
 <div class="cards" id="release"></div>
+<h2>Routine scanners</h2><div id="scanners"></div>
 <h2>Lanes</h2><div id="lanes"></div>
 <div id="resources" class="drift" style="margin-top:8px"></div>
+<div class="toast" id="toast"></div>
 <h2>Working now</h2><div id="workers"></div>
 <h2>Claimed issues</h2><div id="claimed"></div>
 <h2>Recent PRs</h2><div id="prs"></div>
@@ -52,6 +71,25 @@ const fmtDur = s => {
   return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
 };
 const esc = t => { const e = document.createElement("span"); e.textContent = t ?? ""; return e.innerHTML; };
+
+function toast(t) {
+  const el = document.getElementById("toast");
+  el.textContent = t; el.style.display = "block";
+  clearTimeout(el._t); el._t = setTimeout(() => el.style.display = "none", 2600);
+}
+async function api(payload, msg) {
+  try {
+    const res = await fetch("/api/action", { method: "POST", body: JSON.stringify(payload) });
+    const out = await res.json();
+    if (out.ok) { toast(msg); setTimeout(refresh, 800); }
+    else toast("failed: " + (out.error || "unknown"));
+  } catch { toast("API unreachable (static server?)"); }
+}
+function newCampaign() {
+  const goal = document.getElementById("goalText").value.trim();
+  if (goal.length < 10) return toast("write the goal first (10+ chars)");
+  api({ action: "campaign_set", goal }, "campaign started — first gap analysis on next tick");
+}
 
 async function refresh() {
   let s;
@@ -138,6 +176,48 @@ async function refresh() {
           <td>${batch}</td><td>${l.total_done}</td></tr>`;
       }).join("") + "</table>"
     : `<div class="empty">no lanes configured</div>`;
+
+  const c = s.campaign;
+  document.getElementById("campaignSec").innerHTML = (() => {
+    const form = `<div id="newCamp" style="display:none;margin-top:12px">
+        <textarea id="goalText" rows="3" placeholder="State the goal with a measurable definition of done — e.g. Every dashboard page is usable at 375px: no horizontal scroll, tap targets 44px+, mobile e2e for the main flows."></textarea>
+        <div class="controls"><button class="primary" onclick="newCampaign()">Start campaign</button>
+        <button onclick="document.getElementById('newCamp').style.display='none'">Cancel</button></div></div>`;
+    if (!c || !c.goal || c.status === "done") {
+      const doneNote = c && c.goal && c.status === "done"
+        ? `<div class="drift ok">last campaign achieved: ${esc(c.goal.split("\n")[0])}</div>` : "";
+      return `<h2>Campaign</h2><div class="card">${doneNote}
+        <div class="empty">no active campaign — give the system a goal and it works toward it until done</div>
+        <div class="controls"><button class="primary" onclick="document.getElementById('newCamp').style.display='block'">+ New campaign</button></div>${form}</div>`;
+    }
+    const paused = c.status === "paused";
+    return `<h2>Campaign</h2><div class="card">
+      <span class="name" style="font-weight:600;font-size:15px">${esc(c.goal.split("\n")[0])}</span>
+      <span class="kind ${paused ? "warn" : "ok"}">${paused ? "PAUSED" : "ACTIVE"}</span>
+      <div class="big">${c.closed} <span style="font-size:14px;color:var(--dim)">done</span>
+        &nbsp;·&nbsp; ${c.open} <span style="font-size:14px;color:var(--dim)">open gaps</span></div>
+      ${c.assessment ? `<div class="quote">${esc(c.assessment)}</div>` : `<div class="drift dim">no assessment yet — first gap analysis pending</div>`}
+      <div class="controls">
+        <button onclick="api({action:'campaign_${paused ? "resume" : "pause"}'}, 'campaign ${paused ? "resumed" : "paused"}')">${paused ? "Resume" : "Pause"}</button>
+        <button onclick="api({action:'campaign_done'}, 'campaign archived')">Mark done</button>
+        <button class="primary" onclick="document.getElementById('newCamp').style.display='block'">+ New campaign</button>
+      </div>${form}
+      ${c.history ? `<div class="drift dim" style="margin-top:8px">${esc(c.history)}</div>` : ""}
+    </div>`;
+  })();
+
+  const sc = s.scanners || [];
+  document.getElementById("scanners").innerHTML = sc.length
+    ? `<div class="card" style="padding:6px 16px"><table>
+       <tr><th></th><th>scanner</th><th>looks for</th><th></th></tr>` +
+      sc.map(x => `<tr>
+        <td><div class="toggle ${x.enabled ? "on" : ""}" onclick="api({action:'scanner_toggle',name:'${esc(x.name)}'}, '${esc(x.name)} ${x.enabled ? "disabled" : "enabled"}')"></div></td>
+        <td>${esc(x.name)}${x.queued_next ? ' <span class="kind warn">next</span>' : ""}</td>
+        <td class="dim">${esc(x.desc || "custom scanner")}</td>
+        <td><button onclick="api({action:'scanner_run_next',name:'${esc(x.name)}'}, '${esc(x.name)} queued as next refill')">Run next</button></td>
+      </tr>`).join("") + `</table>
+      <div class="row" style="padding:10px 0 12px"><span class="dim">a scanner = one .md file — built-ins ship with issue-pilot, your own in <b>&lt;working-dir&gt;/scanners/</b> override them; enabled ones rotate strictly, one per refill</span></div></div>`
+    : `<div class="empty">no scanners resolved</div>`;
 
   const res = s.resources;
   document.getElementById("resources").textContent = (res && res.budget > 0)
