@@ -126,6 +126,12 @@ PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort
 # STAGING_BRANCH/PROD_BRANCH, or promote/* heads, to a dedicated runner label) so
 # releases never queue behind the worker lanes' CI.
 
+# --- Claude account routing for orchestration roles ---
+# Scanner, campaign, and promotion sessions are the heavyweight ones. List your
+# Claude accounts ("name:config-dir") and each session bills to whichever account
+# is furthest BEHIND its pace line at launch. Leave empty to use the default account.
+#CLAUDE_ACCOUNTS="main:$HOME/.claude work:$HOME/.claude-work"
+
 # --- Notifications ---
 # Runs whenever a lane's concurrency changes. Gets $MSG.
 NOTIFY_CMD=""

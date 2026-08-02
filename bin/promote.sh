@@ -55,6 +55,7 @@ outcome="FAILED"
 rounds="${PROMOTE_MAX_ROUNDS:-8}"
 for round in $(seq 1 "$rounds"); do
   log "promotion round $round/$rounds"
+  pick_claude_account
   GH_REPO=$GH_REPO BASE_BRANCH="${BASE_BRANCH:-main}" \
     STAGING_BRANCH="$staging" PROD_BRANCH="$prod" \
     REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
