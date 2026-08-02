@@ -117,26 +117,38 @@ promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "$
   '{enabled:($enabled=="true"), waiting:$waiting, threshold:$threshold, active:$active,
     last:(if $last_ts==0 then null else {ts:$last_ts, outcome:$last_outcome} end)}')
 
-# scanners: union of rotation entries and library files; enabled = in rotation
+# scanners: union of rotation entries, working-dir overrides, the SCANNED REPO's own
+# scanners/ directory, and the built-in library; enabled = in rotation
 scan_rows=()
 rot=" ${SCANNER_ROTATION:-} "
 peek_next=$(cat "$STATE_DIR/next-scanner" 2>/dev/null || true)
+rdir="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
+scan_bases="$ISSUE_PILOT_HOME/scanners $rdir/scanners $PKG_DIR/scanners"
 all_dims=$( { for d in ${SCANNER_ROTATION:-}; do echo "$d"; done
-              for base in "$ISSUE_PILOT_HOME/scanners" "$PKG_DIR/scanners"; do
-                [ -d "$base" ] && for f in "$base"/*.md; do [ -e "$f" ] && basename "$f" .md; done
+              for base in $scan_bases; do
+                [ -d "$base" ] && for f in "$base"/*.md; do
+                  [ -e "$f" ] || continue
+                  n=$(basename "$f" .md)
+                  if [ "$n" != "CONTEXT" ] && [ "$n" != "README" ]; then echo "$n"; fi
+                done
               done; } | sort -u )
 for d in $all_dims; do
   enabled=false; case "$rot" in *" $d "*) enabled=true ;; esac
-  desc=""
-  for base in "$ISSUE_PILOT_HOME/scanners" "$PKG_DIR/scanners"; do
+  desc=""; src=""
+  for base in $scan_bases; do
     if [ -f "$base/$d.md" ]; then
-      desc=$(head -1 "$base/$d.md" | sed 's/^DIMENSION: *[^—-]*[—-] *//')
+      desc=$(head -1 "$base/$d.md" | sed 's/^DIMENSION: *[^—-]*[—-] *//; s/^# *//')
+      case "$base" in
+        "$PKG_DIR/scanners") src="built-in" ;;
+        "$rdir/scanners")    src="repo" ;;
+        *)                   src="custom" ;;
+      esac
       break
     fi
   done
-  scan_rows+=("$(jq -n --arg name "$d" --argjson enabled "$enabled" --arg desc "$desc" \
+  scan_rows+=("$(jq -n --arg name "$d" --argjson enabled "$enabled" --arg desc "$desc" --arg src "$src" \
     --argjson next "$([ "$d" = "$peek_next" ] && echo true || echo false)" \
-    '{name:$name, enabled:$enabled, desc:$desc, queued_next:$next}')")
+    '{name:$name, enabled:$enabled, desc:$desc, source:(if $src=="" then "rotation-only" else $src end), queued_next:$next}')")
 done
 
 # campaign state

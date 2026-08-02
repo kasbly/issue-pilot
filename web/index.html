@@ -212,7 +212,7 @@ async function refresh() {
        <tr><th></th><th>scanner</th><th>looks for</th><th></th></tr>` +
       sc.map(x => `<tr>
         <td><div class="toggle ${x.enabled ? "on" : ""}" onclick="this.classList.toggle('on'); api({action:'scanner_toggle',name:'${esc(x.name)}'}, '${esc(x.name)} ${x.enabled ? "disabled" : "enabled"}')"></div></td>
-        <td>${esc(x.name)}${x.queued_next ? ' <span class="kind warn">next</span>' : ""}</td>
+        <td>${esc(x.name)}${x.source && x.source !== "built-in" ? ` <span class="kind">${esc(x.source)}</span>` : ""}${x.queued_next ? ' <span class="kind warn">next</span>' : ""}</td>
         <td class="dim">${esc(x.desc || "custom scanner")}</td>
         <td><button onclick="api({action:'scanner_run_next',name:'${esc(x.name)}'}, '${esc(x.name)} queued as next refill')">Run next</button></td>
       </tr>`).join("") + `</table>

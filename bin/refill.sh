@@ -38,8 +38,9 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
   fi
   export SCANNER_DIMENSION=$next
   echo "$next" >"$STATE_DIR/last-scanner"
-  # methodology file: the working dir's scanners/ overrides the built-in library
-  for base in "$ISSUE_PILOT_HOME/scanners" "$PKG_DIR/scanners"; do
+  # methodology file: working dir overrides the scanned repo's scanners/, which
+  # overrides the built-in library
+  for base in "$ISSUE_PILOT_HOME/scanners" "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}/scanners" "$PKG_DIR/scanners"; do
     if [ -f "$base/$next.md" ]; then export SCANNER_PROMPT_FILE="$base/$next.md"; break; fi
   done
 fi
