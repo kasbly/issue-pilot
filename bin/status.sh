@@ -123,29 +123,36 @@ scan_rows=()
 rot=" ${SCANNER_ROTATION:-} "
 peek_next=$(cat "$STATE_DIR/next-scanner" 2>/dev/null || true)
 rdir="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
-scan_bases="$ISSUE_PILOT_HOME/scanners $rdir/scanners $PKG_DIR/scanners"
+ref="origin/${BASE_BRANCH:-main}"
+repo_dims=""
+if [ -d "$rdir/.git" ]; then
+  git -C "$rdir" fetch -q origin "${BASE_BRANCH:-main}" 2>/dev/null || true
+  repo_dims=$(git -C "$rdir" ls-tree --name-only "$ref" scanners/ 2>/dev/null \
+    | sed -n 's|^scanners/\(.*\)\.md$|\1|p' | grep -vE '^(CONTEXT|README)$' || true)
+fi
 all_dims=$( { for d in ${SCANNER_ROTATION:-}; do echo "$d"; done
-              for base in $scan_bases; do
+              printf '%s\n' "$repo_dims"
+              for base in "$ISSUE_PILOT_HOME/scanners" "$PKG_DIR/scanners"; do
                 [ -d "$base" ] && for f in "$base"/*.md; do
                   [ -e "$f" ] || continue
                   n=$(basename "$f" .md)
                   if [ "$n" != "CONTEXT" ] && [ "$n" != "README" ]; then echo "$n"; fi
                 done
-              done; } | sort -u )
+              done; } | sed '/^$/d' | sort -u )
 for d in $all_dims; do
   enabled=false; case "$rot" in *" $d "*) enabled=true ;; esac
   desc=""; src=""
-  for base in $scan_bases; do
-    if [ -f "$base/$d.md" ]; then
-      desc=$(head -1 "$base/$d.md" | sed 's/^DIMENSION: *[^—-]*[—-] *//; s/^# *//')
-      case "$base" in
-        "$PKG_DIR/scanners") src="built-in" ;;
-        "$rdir/scanners")    src="repo" ;;
-        *)                   src="custom" ;;
-      esac
-      break
-    fi
-  done
+  if [ -f "$ISSUE_PILOT_HOME/scanners/$d.md" ]; then
+    desc=$(head -1 "$ISSUE_PILOT_HOME/scanners/$d.md")
+    src="custom"
+  elif grep -qx "$d" <<<"$repo_dims"; then
+    desc=$(git -C "$rdir" show "$ref:scanners/$d.md" 2>/dev/null | head -1)
+    src="repo"
+  elif [ -f "$PKG_DIR/scanners/$d.md" ]; then
+    desc=$(head -1 "$PKG_DIR/scanners/$d.md")
+    src="built-in"
+  fi
+  desc=$(sed 's/^DIMENSION: *[^—-]*[—-] *//; s/^# *//' <<<"$desc")
   scan_rows+=("$(jq -n --arg name "$d" --argjson enabled "$enabled" --arg desc "$desc" --arg src "$src" \
     --argjson next "$([ "$d" = "$peek_next" ] && echo true || echo false)" \
     '{name:$name, enabled:$enabled, desc:$desc, source:(if $src=="" then "rotation-only" else $src end), queued_next:$next}')")
