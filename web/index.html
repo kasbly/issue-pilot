@@ -107,8 +107,9 @@ async function refresh() {
     const drift = (a.used_pct != null && expected != null) ? expected - a.used_pct : null;
     const cls = drift == null ? "" : drift > 10 ? "warn" : drift < -10 ? "bad" : "ok";
     const driftTxt = drift == null ? "no data" :
-      drift > 10 ? `${drift.toFixed(0)}% behind pace — quota will be left over` :
-      drift < -10 ? `${(-drift).toFixed(0)}% ahead of pace` : "on pace";
+      Math.abs(drift) < 1 ? "on pace" :
+      drift > 0 ? `${drift.toFixed(0)}% behind pace${drift > 10 ? " — quota will be left over" : ""}` :
+      `${(-drift).toFixed(0)}% ahead of pace`;
     const stale = a.kind === "codex" && a.stale_secs > 3600 ? ` · snapshot ${fmtDur(a.stale_secs)} old` : "";
     const h5 = a.five_hour_pct != null
       ? ` · 5h window ${a.five_hour_pct.toFixed(0)}%${a.five_hour_pct >= 85 ? " ⚠" : ""}` : "";
