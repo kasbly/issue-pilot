@@ -48,6 +48,15 @@ def campaign(*args):
     ).returncode == 0
 
 
+def refresh_status():
+    # regenerate status.json right away so the UI reflects the change on its next
+    # fetch instead of waiting for the 5-minute timer
+    subprocess.Popen(
+        ["bash", os.path.join(PKG, "bin", "status.sh")],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=os.path.join(HOME, "web"), **kw)
@@ -77,18 +86,24 @@ class Handler(SimpleHTTPRequestHandler):
                     rot = read_rotation()
                     rot = [d for d in rot if d != name] if name in rot else rot + [name]
                     write_rotation(rot)
+                    refresh_status()
                     return self._reply(200, {"ok": True, "rotation": rot})
                 os.makedirs(os.path.join(HOME, "state"), exist_ok=True)
                 with open(os.path.join(HOME, "state", "next-scanner"), "w") as f:
                     f.write(name + "\n")
+                refresh_status()
                 return self._reply(200, {"ok": True, "next": name})
             if action == "campaign_set":
                 goal = req.get("goal", "").strip()
                 if not 10 <= len(goal) <= 2000:
                     return self._reply(400, {"error": "goal must be 10-2000 chars"})
-                return self._reply(200, {"ok": campaign("set", goal)})
+                ok = campaign("set", goal)
+                refresh_status()
+                return self._reply(200, {"ok": ok})
             if action in ("campaign_pause", "campaign_resume", "campaign_done"):
-                return self._reply(200, {"ok": campaign(action.split("_", 1)[1])})
+                ok = campaign(action.split("_", 1)[1])
+                refresh_status()
+                return self._reply(200, {"ok": ok})
             return self._reply(400, {"error": "unknown action"})
         except Exception as e:  # noqa: BLE001 — surface the message, never a traceback page
             return self._reply(500, {"error": str(e)})

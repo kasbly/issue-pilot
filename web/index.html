@@ -81,7 +81,7 @@ async function api(payload, msg) {
   try {
     const res = await fetch("/api/action", { method: "POST", body: JSON.stringify(payload) });
     const out = await res.json();
-    if (out.ok) { toast(msg); setTimeout(refresh, 800); }
+    if (out.ok) { toast(msg); setTimeout(refresh, 4000); }
     else toast("failed: " + (out.error || "unknown"));
   } catch { toast("API unreachable (static server?)"); }
 }
@@ -211,7 +211,7 @@ async function refresh() {
     ? `<div class="card" style="padding:6px 16px"><table>
        <tr><th></th><th>scanner</th><th>looks for</th><th></th></tr>` +
       sc.map(x => `<tr>
-        <td><div class="toggle ${x.enabled ? "on" : ""}" onclick="api({action:'scanner_toggle',name:'${esc(x.name)}'}, '${esc(x.name)} ${x.enabled ? "disabled" : "enabled"}')"></div></td>
+        <td><div class="toggle ${x.enabled ? "on" : ""}" onclick="this.classList.toggle('on'); api({action:'scanner_toggle',name:'${esc(x.name)}'}, '${esc(x.name)} ${x.enabled ? "disabled" : "enabled"}')"></div></td>
         <td>${esc(x.name)}${x.queued_next ? ' <span class="kind warn">next</span>' : ""}</td>
         <td class="dim">${esc(x.desc || "custom scanner")}</td>
         <td><button onclick="api({action:'scanner_run_next',name:'${esc(x.name)}'}, '${esc(x.name)} queued as next refill')">Run next</button></td>
