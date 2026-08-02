@@ -177,32 +177,32 @@ async function refresh() {
       }).join("") + "</table>"
     : `<div class="empty">no lanes configured</div>`;
 
-  const c = s.campaign;
+  const camp = s.campaign;
   document.getElementById("campaignSec").innerHTML = (() => {
     const form = `<div id="newCamp" style="display:none;margin-top:12px">
         <textarea id="goalText" rows="3" placeholder="State the goal with a measurable definition of done — e.g. Every dashboard page is usable at 375px: no horizontal scroll, tap targets 44px+, mobile e2e for the main flows."></textarea>
         <div class="controls"><button class="primary" onclick="newCampaign()">Start campaign</button>
         <button onclick="document.getElementById('newCamp').style.display='none'">Cancel</button></div></div>`;
-    if (!c || !c.goal || c.status === "done") {
-      const doneNote = c && c.goal && c.status === "done"
-        ? `<div class="drift ok">last campaign achieved: ${esc(c.goal.split("\n")[0])}</div>` : "";
+    if (!camp || !camp.goal || camp.status === "done") {
+      const doneNote = c && camp.goal && camp.status === "done"
+        ? `<div class="drift ok">last campaign achieved: ${esc(camp.goal.split("\n")[0])}</div>` : "";
       return `<h2>Campaign</h2><div class="card">${doneNote}
         <div class="empty">no active campaign — give the system a goal and it works toward it until done</div>
         <div class="controls"><button class="primary" onclick="document.getElementById('newCamp').style.display='block'">+ New campaign</button></div>${form}</div>`;
     }
-    const paused = c.status === "paused";
+    const paused = camp.status === "paused";
     return `<h2>Campaign</h2><div class="card">
-      <span class="name" style="font-weight:600;font-size:15px">${esc(c.goal.split("\n")[0])}</span>
+      <span class="name" style="font-weight:600;font-size:15px">${esc(camp.goal.split("\n")[0])}</span>
       <span class="kind ${paused ? "warn" : "ok"}">${paused ? "PAUSED" : "ACTIVE"}</span>
-      <div class="big">${c.closed} <span style="font-size:14px;color:var(--dim)">done</span>
-        &nbsp;·&nbsp; ${c.open} <span style="font-size:14px;color:var(--dim)">open gaps</span></div>
-      ${c.assessment ? `<div class="quote">${esc(c.assessment)}</div>` : `<div class="drift dim">no assessment yet — first gap analysis pending</div>`}
+      <div class="big">${camp.closed} <span style="font-size:14px;color:var(--dim)">done</span>
+        &nbsp;·&nbsp; ${camp.open} <span style="font-size:14px;color:var(--dim)">open gaps</span></div>
+      ${camp.assessment ? `<div class="quote">${esc(camp.assessment)}</div>` : `<div class="drift dim">no assessment yet — first gap analysis pending</div>`}
       <div class="controls">
         <button onclick="api({action:'campaign_${paused ? "resume" : "pause"}'}, 'campaign ${paused ? "resumed" : "paused"}')">${paused ? "Resume" : "Pause"}</button>
         <button onclick="api({action:'campaign_done'}, 'campaign archived')">Mark done</button>
         <button class="primary" onclick="document.getElementById('newCamp').style.display='block'">+ New campaign</button>
       </div>${form}
-      ${c.history ? `<div class="drift dim" style="margin-top:8px">${esc(c.history)}</div>` : ""}
+      ${camp.history ? `<div class="drift dim" style="margin-top:8px">${esc(camp.history)}</div>` : ""}
     </div>`;
   })();
 
