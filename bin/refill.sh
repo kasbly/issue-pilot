@@ -48,6 +48,7 @@ fi
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
 pick_claude_account || { log "scanner deferred — next hourly check retries"; exit 0; }
 bash -c "$SCANNER_CMD"
+bash "$PKG_DIR/bin/label-guard.sh" || true
 after=$(ready_issues | wc -l | tr -d ' ')
 echo "$(date +%s) ran queue=$after" >"$STATE_DIR/refill-last"
 log "scanner finished; ready issues now: $after"

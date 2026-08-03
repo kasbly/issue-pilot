@@ -32,6 +32,8 @@ product against this goal, and turn only the real gaps into GitHub issues.
    gh issue create -R $GH_REPO --title "<gap>" \
      --body "<current behavior, target behavior per the goal, file:line pointers, evidence>" \
      --label "$READY_LABEL,$CAMPAIGN_LABEL"
+   plus EVERY additional label and assignee the repo's scanners/CONTEXT.md mandates —
+   the repo contract always wins over this minimal template.
 5. Also file validation gaps: if the goal cannot be verified automatically yet
    (missing e2e tests, missing checks), file the issue that makes it verifiable.
 6. THE TERMINATION RULE: if the goal is genuinely achieved — no meaningful gaps

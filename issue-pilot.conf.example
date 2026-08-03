@@ -18,6 +18,13 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 # Optional strict rotation: each refill runs the NEXT dimension in this list and
 # exports it as $SCANNER_DIMENSION (use envsubst in SCANNER_CMD's prompt template):
 #SCANNER_ROTATION="bugs security performance i18n product-gaps"
+# Label guard: after every scan, mechanically repair issues the agent under-labeled
+# (type from the [Prefix] in the title, plus the labels/assignee below):
+#SCANNER_GUARD=true
+#SCANNER_GUARD_LABELS="agent-created"
+#SCANNER_GUARD_PRIORITY="priority/medium"
+#SCANNER_GUARD_ASSIGNEE=""
+#SCANNER_TYPE_MAP="Perf=performance UI/UX=ui-ux"
 
 # --- Batches ---
 POLL_SECS=60                         # dispatcher poll interval
