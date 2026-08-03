@@ -129,8 +129,12 @@ PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort
 # --- Claude account routing for orchestration roles ---
 # Scanner, campaign, and promotion sessions are the heavyweight ones. List your
 # Claude accounts ("name:config-dir") and each session bills to whichever account
-# is furthest BEHIND its pace line at launch. Leave empty to use the default account.
+# is furthest BEHIND its pace line at launch. Accounts at or ahead of their line
+# are never used (the session defers and retries) — so no account is exhausted
+# before its reset. Leave empty to use the default account.
 #CLAUDE_ACCOUNTS="main:$HOME/.claude work:$HOME/.claude-work"
+#ORCH_MAX_DRIFT=0                    # eligible only when drift is below this (0 = must be behind the line)
+#ORCH_MAX_USED=95                    # never touch an account above this usage, regardless of drift
 
 # --- Notifications ---
 # Runs whenever a lane's concurrency changes. Gets $MSG.

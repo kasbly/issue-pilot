@@ -46,7 +46,7 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
 fi
 
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
-pick_claude_account
+pick_claude_account || { log "scanner deferred — next hourly check retries"; exit 0; }
 bash -c "$SCANNER_CMD"
 after=$(ready_issues | wc -l | tr -d ' ')
 echo "$(date +%s) ran queue=$after" >"$STATE_DIR/refill-last"

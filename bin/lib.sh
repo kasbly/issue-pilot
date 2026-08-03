@@ -17,15 +17,20 @@ log() { echo "[$(date '+%F %T')] $*"; }
 # per-lane config lookup with fallback: lane_get <id> <KEY> [default]
 lane_get() { local v="LANE_${1}_${2}"; echo "${!v:-${3:-}}"; }
 
-# route the next agent session to the Claude account with the most headroom
-# (no-op unless CLAUDE_ACCOUNTS is configured)
+# route the next agent session to the Claude account with the most headroom.
+# Returns 1 (and exports nothing) when NO account is behind its pace line — callers
+# must defer the session rather than burn an account that is already ahead.
+# No-op success unless CLAUDE_ACCOUNTS is configured.
 pick_claude_account() {
   [ -n "${CLAUDE_ACCOUNTS:-}" ] || return 0
   local name dir
   if read -r name dir < <(bash "$PKG_DIR/bin/pick-account.sh" 2>/dev/null) && [ -n "${dir:-}" ]; then
     export CLAUDE_CONFIG_DIR="$dir"
     log "billing this session to Claude account '$name' (most headroom)"
+    return 0
   fi
+  log "no Claude account is behind its pace line — deferring this session"
+  return 1
 }
 
 # open issues that are ready and unclaimed, one number per line, ISSUE_ORDER first
