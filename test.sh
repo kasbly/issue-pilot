@@ -97,6 +97,17 @@ got_a=$(cat "$tmp/state/lane-a.concurrency"); got_b=$(cat "$tmp/state/lane-b.con
 [ "$got_a" = 2 ] && [ "$got_b" = 1 ] || { echo "FAIL no-starve: a=$got_a b=$got_b expected 2/1"; exit 1; }
 echo "ok   tight budget never starves an active lane"
 
+# panel switches
+make_conf always 'LANE_t_CONCURRENCY=4' 4
+touch "$tmp/state/lane-t.disabled"
+check "deactivated lane gets 0" 0
+rm -f "$tmp/state/lane-t.disabled"
+check "reactivated lane comes back" 4
+
+touch "$tmp/state/paused"
+check "paused system leaves concurrency untouched" 4   # resume must not restart at 0
+rm -f "$tmp/state/paused"
+
 [ -f "$tmp/notified" ] || { echo "FAIL: concurrency changes did not notify"; exit 1; }
 echo "ok   changes notify"
 

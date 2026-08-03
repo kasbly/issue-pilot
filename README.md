@@ -162,6 +162,13 @@ exposes usage data), and `issue-pilot-status.timer` refreshes `web/status.json` 
 state and current-batch progress (picked / done / left); live worker sessions mapped
 to the account burning them; claimed issues and recent PRs.
 
+It also writes: **Pause system** stops everything (no scanning, pacing, promotion,
+campaign ticks or batches — running batches are stopped too), **Start system**
+resumes where it left off; the toggle on each lane row activates or deactivates
+that one agent (Claude, Codex, …) without touching the rest. Both are state files
+(`state/paused`, `state/lane-<id>.disabled`) that every loop checks, so a toggle
+takes effect within one dispatcher poll — no restart, no config edit.
+
 ## Notes
 
 - One dispatcher per repo. The claim label is the mutex; a single orchestrator

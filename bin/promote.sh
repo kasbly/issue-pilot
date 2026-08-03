@@ -11,6 +11,7 @@ flock -n 9 || { log "promotion already running — skipping"; exit 0; }
 
 force=0; [ "${1:-}" = "--now" ] && force=1
 if [ "$force" -eq 0 ]; then
+  paused && { log "system paused — promotion skipped"; exit 0; }
   [ "${PROMOTE_ENABLED:-false}" = "true" ] || { log "promotion disabled (PROMOTE_ENABLED=false)"; exit 0; }
   [ "${AUTO_MERGE:-false}" = "true" ] || { log "promotion requires AUTO_MERGE=true"; exit 0; }
 fi

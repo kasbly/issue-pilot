@@ -14,10 +14,11 @@ while true; do
 
   for id in "${!lane_pid[@]}"; do
     if kill -0 "${lane_pid[$id]}" 2>/dev/null; then
-      # the pacer zeroed this lane (quota back on pace / resources gone): stop the
-      # whole batch process group now instead of letting it run on stale concurrency
+      # the pacer zeroed this lane (quota back on pace / resources gone), the panel
+      # disabled it, or the whole system was paused: stop the batch process group
+      # now instead of letting it run on stale concurrency
       c=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
-      if [ "$c" -eq 0 ]; then
+      if paused || lane_disabled "$id" || [ "$c" -eq 0 ]; then
         log "lane $id: target dropped to 0 — stopping running batch"
         kill -TERM -- "-${lane_pid[$id]}" 2>/dev/null || kill -TERM "${lane_pid[$id]}" 2>/dev/null || true
       fi
@@ -29,10 +30,19 @@ while true; do
     unset "lane_pid[$id]"
   done
 
-  if [ -n "$(ready_issues | head -1)" ]; then
+  if paused; then
+    [ "${was_paused:-0}" = 1 ] || log "system PAUSED from the panel — no batches will start"
+    was_paused=1
+  else
+    [ "${was_paused:-0}" = 0 ] || log "system resumed"
+    was_paused=0
+  fi
+
+  if ! paused && [ -n "$(ready_issues | head -1)" ]; then
     sort_dir=asc; [ "${ISSUE_ORDER:-oldest}" = "newest" ] && sort_dir=desc
     for id in ${LANES:-}; do
       [ -n "${lane_pid[$id]:-}" ] && continue
+      lane_disabled "$id" && continue
       c=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
       [ "$c" -gt 0 ] || continue
       label=$(lane_get "$id" LABEL "$id")

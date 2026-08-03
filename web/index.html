@@ -46,7 +46,8 @@
            color:#0b0d12; padding:8px 18px; border-radius:99px; font-weight:600; display:none; z-index:9; }
 </style>
 
-<h1>issue-pilot <span id="dispatch" class="pill"></span></h1>
+<h1>issue-pilot <span id="dispatch" class="pill"></span>
+  <button id="power" style="margin-left:10px"></button></h1>
 <div id="meta"></div>
 <div id="campaignSec"></div>
 <div class="cards" id="accounts"></div>
@@ -97,8 +98,18 @@ async function refresh() {
   catch { document.getElementById("meta").textContent = "status.json unavailable"; return; }
   const now = Math.floor(Date.now()/1000);
 
-  document.getElementById("dispatch").textContent = "dispatch: " + (s.dispatch || "?");
-  document.getElementById("dispatch").className = "pill " + (s.dispatch === "active" ? "ok" : "bad");
+  const off = !!s.paused;
+  document.getElementById("dispatch").textContent =
+    off ? "PAUSED" : "dispatch: " + (s.dispatch || "?");
+  document.getElementById("dispatch").className =
+    "pill " + (off ? "warn" : s.dispatch === "active" ? "ok" : "bad");
+  const power = document.getElementById("power");
+  power.textContent = off ? "▶ Start system" : "⏸ Pause system";
+  power.className = off ? "primary" : "";
+  power.onclick = () => api(
+    { action: off ? "system_resume" : "system_pause" },
+    off ? "system started — lanes resume within a minute"
+        : "system paused — scanning, pacing and running batches stop");
   document.getElementById("meta").textContent = "data collected " + fmtDur(now - s.generated_at) + " ago · page refreshes every 60s";
 
   document.getElementById("accounts").innerHTML = (s.accounts || []).map(a => {
@@ -165,17 +176,24 @@ async function refresh() {
 
   const lanes = s.lanes || [];
   document.getElementById("lanes").innerHTML = lanes.length
-    ? "<table><tr><th>lane</th><th>model</th><th>mode</th><th>state</th><th>current batch</th><th>total PRs</th></tr>" +
+    ? `<div class="card" style="padding:6px 16px"><table>
+       <tr><th></th><th>lane</th><th>model</th><th>mode</th><th>state</th><th>current batch</th><th>total PRs</th></tr>` +
       lanes.map(l => {
-        const on = l.concurrency > 0;
+        const on = l.concurrency > 0 && !l.disabled && !off;
         const batch = (on && l.batch_started)
           ? `${l.batch_done} done / ${Math.max(l.batch_target - l.batch_done, 0)} left of ${l.batch_target} picked · running ${fmtDur(now - l.batch_started)}`
           : "—";
         const model = l.model ? esc(l.model) + (l.effort ? ` <span class="kind">${esc(l.effort)}</span>` : "") : "—";
-        return `<tr><td>${esc(l.label)}</td><td>${model}</td><td>${esc(l.mode)}</td>
-          <td class="${on ? "ok" : ""}">${on ? `on · ${l.concurrency} subagents` : "off"}</td>
+        const state = l.disabled ? `<span class="dim">disabled</span>`
+          : off ? `<span class="warn">paused</span>`
+          : on ? `on · ${l.concurrency} subagents` : "idle";
+        return `<tr>
+          <td><div class="toggle ${l.disabled ? "" : "on"}" onclick="this.classList.toggle('on'); api({action:'lane_toggle',id:'${esc(l.id)}'}, '${esc(l.label)} ${l.disabled ? "activated" : "deactivated"}')"></div></td>
+          <td>${esc(l.label)}</td><td>${model}</td><td>${esc(l.mode)}</td>
+          <td class="${on ? "ok" : ""}">${state}</td>
           <td>${batch}</td><td>${l.total_done}</td></tr>`;
-      }).join("") + "</table>"
+      }).join("") + `</table>
+      <div class="row" style="padding:10px 0 12px"><span class="dim">a lane = one agent (Claude, Codex, …) — deactivating one stops its running batch; its claimed issues keep the claim label until you remove it</span></div></div>`
     : `<div class="empty">no lanes configured</div>`;
 
   const camp = s.campaign;

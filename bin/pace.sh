@@ -8,6 +8,10 @@
 . "$(dirname "$0")/lib.sh"
 cd "$ISSUE_PILOT_HOME"
 
+# paused: leave every lane's concurrency file untouched (dispatch is already
+# holding the lanes down) so resuming picks up where it left off, not at zero
+paused && { log "system paused — pacing skipped"; exit 0; }
+
 # Server resource budget: how many workers the box can afford right now, shared by
 # all lanes (allocated in LANES order). Probe prints "<cores> <load5> <mem_avail_mb>".
 probe="${RESOURCE_PROBE_CMD:-echo \"\$(nproc) \$(awk '{print \$2}' /proc/loadavg) \$(awk '/MemAvailable/{print int(\$2/1024)}' /proc/meminfo)\"}"
@@ -27,6 +31,12 @@ for id in ${LANES:-}; do
   mode=$(lane_get "$id" MODE off)
   prev=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
   target=0
+
+  if lane_disabled "$id"; then
+    log "[$label] disabled from the panel"
+    eval "want_$id=0"
+    continue
+  fi
 
   case "$mode" in
     always)

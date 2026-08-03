@@ -36,6 +36,7 @@ case "${1:-status}" in
     exec 9>"$CDIR/tick.lock"
     flock -n 9 || { log "campaign tick already running"; exit 0; }
     [ "$(cat "$CDIR/status" 2>/dev/null)" = "active" ] || { log "campaign not active — tick skipped"; exit 0; }
+    paused && { log "system paused — campaign tick skipped"; exit 0; }
 
     # only re-analyze when the lanes have nearly drained the previous batch of
     # campaign issues — that is the "implemented, now validate" moment

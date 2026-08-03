@@ -96,10 +96,11 @@ for id in ${LANES:-}; do
   started=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
   lane_rows+=("$(jq -n --arg id "$id" --arg label "$(lane_get "$id" LABEL "$id")" \
     --arg mode "$(lane_get "$id" MODE off)" --argjson conc "$conc" \
+    --argjson disabled "$(lane_disabled "$id" && echo true || echo false)" \
     --arg model "$(lane_get "$id" MODEL)" --arg effort "$(lane_get "$id" EFFORT)" \
     --argjson started "$started" --argjson target "${BATCH_SIZE:-0}" \
     --argjson prs "$all_prs" '
-    {id:$id, label:$label, mode:$mode, concurrency:$conc, model:$model, effort:$effort,
+    {id:$id, label:$label, mode:$mode, concurrency:$conc, disabled:$disabled, model:$model, effort:$effort,
      batch_started:(if $started==0 then null else $started end),
      batch_target:$target,
      batch_done:([$prs[] | select((.headRefName|startswith("pilot-"+$id+"/"))
@@ -180,15 +181,18 @@ resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" 
   --argjson cores "${rb_cores:-0}" --argjson mem_mb "${rb_mem:-0}" \
   '{budget:$budget, load5:$load, cores:$cores, mem_mb:$mem_mb}')
 
+sys_paused=false; paused && sys_paused=true
+
 join_json "${acc_rows[@]}" | jq \
-  --argjson gen "$now" --arg dispatch "$dispatch" --argjson resources "$resources" \
+  --argjson gen "$now" --arg dispatch "$dispatch" --argjson paused "$sys_paused" \
+  --argjson resources "$resources" \
   --argjson workers "$(join_json "${proc_rows[@]}")" \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
   --argjson scanners "$(join_json "${scan_rows[@]}")" --argjson campaign "$campaign" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
-  '{generated_at:$gen, dispatch:$dispatch, accounts:., lanes:$lanes, workers:$workers,
+  '{generated_at:$gen, dispatch:$dispatch, paused:$paused, accounts:., lanes:$lanes, workers:$workers,
     resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
     scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

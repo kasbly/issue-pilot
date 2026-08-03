@@ -3,6 +3,8 @@
 
 Bind it to a private/VPN interface only — the API changes configuration.
 Actions (POST /api/action, JSON body {"action": ..., ...}):
+  system_pause / system_resume   stop/start the whole machine (state/paused)
+  lane_toggle      {id}     enable/disable one agent lane (state/lane-<id>.disabled)
   scanner_toggle   {name}   add/remove a scanner in SCANNER_ROTATION (conf edit)
   scanner_run_next {name}   make the next refill run this scanner once
   campaign_set     {goal}   start a new campaign
@@ -18,6 +20,21 @@ BIND = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 9124
 
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+STATE = os.path.join(HOME, "state")
+
+
+def state_path(*parts):
+    return os.path.join(STATE, *parts)
+
+
+def set_flag(path, on):
+    """Create or remove a state flag file. Returns the resulting state."""
+    os.makedirs(STATE, exist_ok=True)
+    if on:
+        open(path, "w").close()
+    elif os.path.exists(path):
+        os.remove(path)
+    return on
 
 
 def read_rotation():
@@ -48,13 +65,17 @@ def campaign(*args):
     ).returncode == 0
 
 
+def kick(script):
+    subprocess.Popen(
+        ["bash", os.path.join(PKG, "bin", script)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
 def refresh_status():
     # regenerate status.json right away so the UI reflects the change on its next
     # fetch instead of waiting for the 5-minute timer
-    subprocess.Popen(
-        ["bash", os.path.join(PKG, "bin", "status.sh")],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
+    kick("status.sh")
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -78,6 +99,23 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
             action = req.get("action", "")
+            if action in ("system_pause", "system_resume"):
+                on = set_flag(state_path("paused"), action == "system_pause")
+                # resuming re-paces immediately, so lanes don't idle until the 2h timer
+                if not on:
+                    kick("pace.sh")
+                refresh_status()
+                return self._reply(200, {"ok": True, "paused": on})
+            if action == "lane_toggle":
+                lane = req.get("id", "")
+                if not NAME_RE.match(lane):
+                    return self._reply(400, {"error": "bad lane id"})
+                flag = state_path("lane-%s.disabled" % lane)
+                off = set_flag(flag, not os.path.exists(flag))
+                if not off:
+                    kick("pace.sh")
+                refresh_status()
+                return self._reply(200, {"ok": True, "disabled": off})
             if action in ("scanner_toggle", "scanner_run_next"):
                 name = req.get("name", "")
                 if not NAME_RE.match(name):

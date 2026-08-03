@@ -14,6 +14,11 @@ mkdir -p "$STATE_DIR"
 
 log() { echo "[$(date '+%F %T')] $*"; }
 
+# panel switches (state files, so a toggle takes effect without editing conf or
+# restarting anything): system-wide pause, and per-lane enable/disable
+paused() { [ -f "$STATE_DIR/paused" ]; }
+lane_disabled() { [ -f "$STATE_DIR/lane-$1.disabled" ]; }
+
 # per-lane config lookup with fallback: lane_get <id> <KEY> [default]
 lane_get() { local v="LANE_${1}_${2}"; echo "${!v:-${3:-}}"; }
 

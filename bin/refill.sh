@@ -2,6 +2,8 @@
 # refill: when the ready-issue queue runs low, run the scanner to generate more.
 . "$(dirname "$0")/lib.sh"
 
+paused && { log "system paused — refill skipped"; exit 0; }
+
 count=$(ready_issues | wc -l | tr -d ' ')
 log "ready issues: $count (threshold: $REFILL_THRESHOLD)"
 
