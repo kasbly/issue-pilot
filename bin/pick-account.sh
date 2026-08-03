@@ -16,8 +16,19 @@ max_used="${ORCH_MAX_USED:-95}"
 best_name="" best_dir="" best_drift=""
 for entry in ${CLAUDE_ACCOUNTS:-}; do
   name=${entry%%:*}; dir=${entry#*:}
-  read -r pct secs _ < <(CLAUDE_CREDENTIALS="$dir/.credentials.json" bash "$PKG_DIR/bin/usage-claude.sh" 2>/dev/null) || continue
-  [ -n "${secs:-}" ] || continue
+  pct=""; secs=""
+  read -r pct secs _ < <(CLAUDE_CREDENTIALS="$dir/.credentials.json" bash "$PKG_DIR/bin/usage-claude.sh" 2>/dev/null) || true
+  if [ -z "${secs:-}" ]; then
+    # stale access token (idle accounts stop refreshing): a minimal session on that
+    # account refreshes it through the official path, then retry the read once
+    echo "account $name: usage read failed — pinging to refresh token" >&2
+    CLAUDE_CONFIG_DIR="$dir" timeout 90 claude -p "Reply with exactly: OK" --effort low >/dev/null 2>&1 || true
+    read -r pct secs _ < <(CLAUDE_CREDENTIALS="$dir/.credentials.json" bash "$PKG_DIR/bin/usage-claude.sh" 2>/dev/null) || true
+  fi
+  if [ -z "${secs:-}" ]; then
+    echo "account $name: usage UNAVAILABLE even after refresh — excluded (check credentials)" >&2
+    continue
+  fi
   # drift > 0 = ahead of pace (already burned more than the line); prefer the lowest
   drift=$(awk -v p="$pct" -v s="$secs" 'BEGIN { printf "%.1f", p - 100 * (1 - s / 604800) }')
   if ! awk -v d="$drift" -v md="$max_drift" -v p="$pct" -v mu="$max_used" \
