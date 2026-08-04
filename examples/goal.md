@@ -31,9 +31,10 @@ LOOP — repeat until $BATCH_SIZE issues are done or the queue is empty:
    - Read the issue. If invalid, already fixed, or duplicate: comment why, close it, done.
    - Isolate in a git worktree, never a shared checkout and never a full re-clone:
      `git -C $REPO_DIR worktree add /tmp/$LANE_SLUG-issue-N -b $LANE_SLUG/issue-N origin/$BASE_BRANCH`
-   - Install dependencies inside the worktree. Prefer the repo's own package manager;
-     store-based ones (pnpm) hardlink from a shared store, so per-worktree
-     node_modules costs almost no extra disk.
+   - Install dependencies inside the worktree — NEVER in the directory this session
+     started in (it is the scheduler's home, not a checkout). Prefer the repo's own
+     package manager; store-based ones (pnpm) hardlink from a shared store, so
+     per-worktree node_modules costs almost no extra disk.
    - Implement the smallest correct fix, following the repo's own conventions
      (CLAUDE.md, CONTRIBUTING.md). Extend existing tests rather than adding new files
      where the repo's policy says so.

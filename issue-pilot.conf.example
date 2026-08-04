@@ -9,6 +9,7 @@ CLAIM_LABEL="in-pilot"               # added when a lane picks an issue up
 
 # --- Refill (issue generation) ---
 REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
+JANITOR_STALE_HOURS=6                # hourly janitor releases claims older than this with no PR
 # Command that generates new issues (your scanner pipeline). Runs from ISSUE_PILOT_HOME.
 # Issue quality is the foundation of the whole loop — use a strong model here.
 SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
