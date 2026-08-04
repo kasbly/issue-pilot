@@ -11,8 +11,20 @@ CREDS="${CLAUDE_CREDENTIALS:-$HOME/.claude/.credentials.json}"
 tok=$(jq -r '.claudeAiOauth.accessToken // empty' "$CREDS" 2>/dev/null)
 [ -n "$tok" ] || { echo "usage-claude: no access token in $CREDS" >&2; exit 1; }
 
-resp=$(curl -sf --max-time 30 https://api.anthropic.com/api/oauth/usage \
-  -H "Authorization: Bearer $tok" -H "anthropic-beta: oauth-2025-04-20")
+fetch_usage() {
+  tok=$(jq -r '.claudeAiOauth.accessToken // empty' "$CREDS" 2>/dev/null)
+  [ -n "$tok" ] || return 1
+  curl -sf --max-time 30 https://api.anthropic.com/api/oauth/usage \
+    -H "Authorization: Bearer $tok" -H "anthropic-beta: oauth-2025-04-20"
+}
+
+if ! resp=$(fetch_usage); then
+  # idle accounts stop refreshing their access token; a minimal session refreshes it
+  # through the official path, then retry once
+  echo "usage-claude: token stale for $CREDS — pinging to refresh" >&2
+  CLAUDE_CONFIG_DIR="$(dirname "$CREDS")" timeout 90 claude -p "Reply with exactly: OK" --effort low >/dev/null 2>&1 || true
+  resp=$(fetch_usage) || { echo "usage-claude: still failing after refresh" >&2; exit 1; }
+fi
 pct=$(jq -r '.seven_day.utilization // empty' <<<"$resp")
 resets=$(jq -r '.seven_day.resets_at // empty' <<<"$resp")
 [ -n "$pct" ] && [ -n "$resets" ] || { echo "usage-claude: unexpected response shape" >&2; exit 1; }
