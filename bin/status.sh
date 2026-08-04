@@ -182,9 +182,11 @@ campaign=$(jq -n --arg goal "$c_goal" --arg status "$c_status" --arg assess "$c_
     history:(if $history=="" then null else $history end)}')
 
 read -r rb_budget rb_load rb_cores rb_mem 2>/dev/null <"$STATE_DIR/resource-budget" || { rb_budget=0; rb_load=0; rb_cores=0; rb_mem=0; }
+disk_free_mb=$(df -Pm "$ISSUE_PILOT_HOME" 2>/dev/null | awk 'NR==2 {print $4}' || echo 0)
 resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" \
   --argjson cores "${rb_cores:-0}" --argjson mem_mb "${rb_mem:-0}" \
-  '{budget:$budget, load5:$load, cores:$cores, mem_mb:$mem_mb}')
+  --argjson disk "${disk_free_mb:-0}" \
+  '{budget:$budget, load5:$load, cores:$cores, mem_mb:$mem_mb, disk_free_mb:$disk}')
 
 sys_paused=false; paused && sys_paused=true
 

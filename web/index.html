@@ -245,8 +245,11 @@ async function refresh() {
     : `<div class="empty">no scanners resolved</div>`;
 
   const res = s.resources;
-  document.getElementById("resources").textContent = (res && res.budget > 0)
-    ? `server resource budget: ${res.budget} workers (load ${res.load5} of ${res.cores} cores, ${(res.mem_mb/1024).toFixed(0)} GB free) — lanes are capped by what's left of this budget`
+  const diskGb = res && res.disk_free_mb ? res.disk_free_mb / 1024 : null;
+  document.getElementById("resources").innerHTML = (res && res.budget > 0)
+    ? `server resource budget: ${res.budget} workers (load ${esc(res.load5)} of ${res.cores} cores, ${(res.mem_mb/1024).toFixed(0)} GB RAM free` +
+      (diskGb != null ? `, <span class="${diskGb < 10 ? "bad" : diskGb < 20 ? "warn" : ""}">${diskGb.toFixed(0)} GB disk free${diskGb < 10 ? " ⚠" : ""}</span>` : "") +
+      `) — lanes are capped by what's left of this budget`
     : "";
 
   const w = s.workers || [];

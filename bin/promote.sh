@@ -52,6 +52,11 @@ promotion_done() {
   [ "${merged:-0}" -ge 1 ]
 }
 
+# A mid-flight release outranks pace purity: deferring rounds lets the frozen
+# candidate rot while dev advances. Promotion may bill a somewhat-ahead account
+# (ORCH_MAX_USED still protects nearly-spent ones).
+export ORCH_MAX_DRIFT="${PROMOTE_MAX_DRIFT:-50}"
+
 outcome="FAILED"
 rounds="${PROMOTE_MAX_ROUNDS:-8}"
 for round in $(seq 1 "$rounds"); do
