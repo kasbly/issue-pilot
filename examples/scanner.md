@@ -11,7 +11,7 @@ quality gates, conventions) and overrides these generic instructions wherever th
 conflict.
 
 WORKSPACE: use the shared clone at $REPO_DIR read-only (fetch origin first and read
-from origin/$BASE_BRANCH), or a fresh shallow clone if $REPO_DIR does not exist.
+from origin/$BASE_BRANCH), or a fresh shallow clone at /tmp/pilot-scan-$SCANNER_DIMENSION-<date> if $REPO_DIR does not exist (that prefix lets the janitor sweep leaks).
 
 RULES:
 - File at most 20 issues. Fewer good issues beat many shallow ones.
