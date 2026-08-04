@@ -26,4 +26,18 @@ done
 if [ "$released" -gt 0 ] && [ -n "${NOTIFY_CMD:-}" ]; then
   MSG="issue-pilot: janitor released $released stale claim(s)" bash -c "$NOTIFY_CMD" || true
 fi
+
+# Leaked worktrees: prompts tell workers to clean up, but killed batches can't.
+# Remove pilot/promote worktrees untouched for JANITOR_WORKTREE_HOURS (default 48)
+# with no open files, then prune the clone's worktree registry.
+wt_removed=0
+for d in /tmp/pilot-* /tmp/promote-*; do
+  [ -d "$d" ] || continue
+  age=$(( $(date +%s) - $(stat -c %Y "$d" 2>/dev/null || date +%s) ))
+  [ "$age" -gt $(( ${JANITOR_WORKTREE_HOURS:-48} * 3600 )) ] || continue
+  lsof -t +d "$d" >/dev/null 2>&1 && continue
+  rm -rf "$d" && { log "janitor: removed stale worktree $d ($(( age / 3600 ))h old)"; wt_removed=$((wt_removed + 1)); }
+done
+[ -d "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}/.git" ] && git -C "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" worktree prune 2>/dev/null || true
+[ "$wt_removed" -gt 0 ] && log "janitor: removed $wt_removed stale worktree(s)"
 exit 0
