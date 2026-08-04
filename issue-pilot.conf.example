@@ -13,8 +13,13 @@ REFILL_THRESHOLD=10                  # run the scanner when open ready issues dr
 # Issue quality is the foundation of the whole loop — use a strong model here.
 SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 # Example: SCANNER_CMD='claude -p "$(cat examples/scanner.md)" --model opus --effort high --dangerously-skip-permissions'
-#SCANNER_MODEL=""                    # shown on the status page; keep in sync with SCANNER_CMD flags
-#SCANNER_EFFORT=""
+# Per-dimension models: judgment-heavy scanners deserve stronger models than
+# mechanical ones. SCANNER_CMD should use --model $SCANNER_RUN_MODEL --effort
+# $SCANNER_RUN_EFFORT; refill resolves them per dimension (hyphens → underscores):
+#SCANNER_MODEL_DEFAULT="opus"
+#SCANNER_EFFORT_DEFAULT="high"
+#SCANNER_MODEL_security="fable"      # costliest failures — strongest model
+#SCANNER_MODEL_deps="sonnet"         # mostly mechanical — cheap model is enough
 # Optional strict rotation: each refill runs the NEXT dimension in this list and
 # exports it as $SCANNER_DIMENSION (use envsubst in SCANNER_CMD's prompt template):
 #SCANNER_ROTATION="bugs security performance i18n product-gaps"

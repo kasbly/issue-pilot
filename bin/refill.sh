@@ -45,6 +45,12 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
   for base in "$ISSUE_PILOT_HOME/scanners" "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}/scanners" "$PKG_DIR/scanners"; do
     if [ -f "$base/$next.md" ]; then export SCANNER_PROMPT_FILE="$base/$next.md"; break; fi
   done
+  # per-dimension model/effort (hyphens become underscores in the var name):
+  # SCANNER_MODEL_security="fable" beats SCANNER_MODEL_DEFAULT
+  dim_key=$(tr '-' '_' <<<"$next")
+  v="SCANNER_MODEL_$dim_key";  export SCANNER_RUN_MODEL="${!v:-${SCANNER_MODEL_DEFAULT:-sonnet}}"
+  v="SCANNER_EFFORT_$dim_key"; export SCANNER_RUN_EFFORT="${!v:-${SCANNER_EFFORT_DEFAULT:-high}}"
+  log "scanner model for $next: $SCANNER_RUN_MODEL ($SCANNER_RUN_EFFORT)"
 fi
 
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
