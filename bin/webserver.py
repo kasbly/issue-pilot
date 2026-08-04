@@ -116,6 +116,24 @@ class Handler(SimpleHTTPRequestHandler):
                     kick("pace.sh")
                 refresh_status()
                 return self._reply(200, {"ok": True, "disabled": off})
+            if action == "lane_mode":
+                lane = req.get("id", "")
+                mode = req.get("mode", "")
+                if not NAME_RE.match(lane) or mode not in ("always", "window", "off"):
+                    return self._reply(400, {"error": "bad lane id or mode"})
+                with open(CONF) as f:
+                    text = f.read()
+                line = 'LANE_%s_MODE="%s"' % (lane, mode)
+                pat = r"^LANE_%s_MODE=.*$" % re.escape(lane)
+                if re.search(pat, text, flags=re.M):
+                    text = re.sub(pat, line, text, count=1, flags=re.M)
+                else:
+                    text += "\n" + line + "\n"
+                with open(CONF, "w") as f:
+                    f.write(text)
+                kick("pace.sh")  # apply the new mode now, not at the next hourly tick
+                refresh_status()
+                return self._reply(200, {"ok": True, "mode": mode})
             if action in ("scanner_toggle", "scanner_run_next"):
                 name = req.get("name", "")
                 if not NAME_RE.match(name):

@@ -55,7 +55,8 @@ BATCH_SIZE=25                        # issues per batch session (small batches s
 #                 usage becomes unreadable — schedule a tiny keepalive session, e.g. cron:
 #                 0 */6 * * * CLAUDE_CONFIG_DIR=<dir> claude -p "Reply OK" --dangerously-skip-permissions
 #   USAGE_CMD     (window) override usage source; must print "<pct_used> <secs_to_reset>"
-#                 (default: bin/usage-claude.sh with CREDENTIALS)
+#                 (default: bin/usage-claude.sh with CREDENTIALS; Codex accounts:
+#                 use "bash bin/usage-codex.sh")
 #   MODEL/EFFORT  shown on the status page; keep in sync with the flags in CMD
 #                 (claude: --model X --effort Y · codex: -m X -c model_reasoning_effort=Y)
 # Per-lane overrides of the window defaults below: LANE_<id>_PACE_TOLERANCE_PCT,
@@ -97,6 +98,8 @@ PACE_TOLERANCE_PCT=5                 # how far behind the line counts as "behind
                                      # more slack for interactive use)
 CATCHUP_HOURS=4                      # close a deficit within roughly this many hours
 MIN_CONCURRENCY=1                    # floor while a window lane is catching up
+HARD_STOP_PCT=98                     # even always-lanes stop when their account hits this —
+                                     # grinding a spent account against rate limits helps nobody
 MAX_CONCURRENCY=6                    # ceiling per lane
 BURN_PCT_PER_WORKER_HOUR=2           # rough % of weekly quota one subagent burns per hour;
                                      # the pacer re-reads real usage each tick, so this

@@ -41,6 +41,17 @@ for id in ${LANES:-}; do
   case "$mode" in
     always)
       target=$(lane_get "$id" CONCURRENCY "${DEFAULT_CONCURRENCY:-3}")
+      # hard stop: even an always-lane must not grind a spent account against
+      # rate limits — resume happens automatically after the reset
+      ucmd=$(lane_get "$id" USAGE_CMD)
+      creds=$(lane_get "$id" CREDENTIALS)
+      [ -z "$ucmd" ] && [ -n "$creds" ] && ucmd="CLAUDE_CREDENTIALS='$creds' bash bin/usage-claude.sh"
+      if [ -n "$ucmd" ] && read -r a_pct _ < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${a_pct:-}" ]; then
+        if awk -v p="$a_pct" -v h="${HARD_STOP_PCT:-98}" 'BEGIN { exit !(p >= h) }'; then
+          log "[$label] account at ${a_pct}% — hard stop until reset"
+          target=0
+        fi
+      fi
       log "[$label] always-on concurrency=$target"
       ;;
     window)

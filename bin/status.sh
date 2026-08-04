@@ -18,14 +18,12 @@ for a in "${ACCTS[@]}"; do
   used="" resets=0 stale=0 h5=""
   if [ "$kind" = "claude" ]; then
     DIR2NAME[$(dirname "$path")]=$name
-    tok=$(jq -r '.claudeAiOauth.accessToken // empty' "$path" 2>/dev/null)
-    if [ -n "$tok" ]; then
-      resp=$(curl -sf --max-time 20 https://api.anthropic.com/api/oauth/usage \
-        -H "Authorization: Bearer $tok" -H "anthropic-beta: oauth-2025-04-20" || true)
-      used=$(jq -r '.seven_day.utilization // empty' <<<"$resp")
-      iso=$(jq -r '.seven_day.resets_at // empty' <<<"$resp")
-      [ -n "$iso" ] && resets=$(date -d "$iso" +%s)
-      h5=$(jq -r '.five_hour.utilization // empty' <<<"$resp")
+    # usage-claude.sh self-heals stale tokens (idle accounts stop refreshing them),
+    # so the card never shows "no data" for a merely-idle account
+    if read -r u_pct u_secs u_h5 _ < <(CLAUDE_CREDENTIALS="$path" bash "$PKG_DIR/bin/usage-claude.sh" 2>/dev/null) && [ -n "${u_secs:-}" ]; then
+      used=$u_pct
+      resets=$(( $(date +%s) + u_secs ))
+      h5=${u_h5:-}
     fi
   else
     CODEX_NAME=$name
