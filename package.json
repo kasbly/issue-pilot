@@ -1,6 +1,6 @@
 {
   "name": "@kasbly/issue-pilot",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Self-feeding GitHub issue mill: scanners refill the queue, AI agent lanes (Claude/Codex) implement issues into PRs, and a pacer drains your subscription quota exactly by its weekly reset.",
   "bin": {
     "issue-pilot": "bin/issue-pilot"
