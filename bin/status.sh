@@ -26,7 +26,7 @@ for a in "${ACCTS[@]}"; do
       h5=${u_h5:-}
     fi
   else
-    CODEX_NAME=$name
+    CODEX_NAME=$name # fallback attribution for codex procs without LANE_NAME
     # newest codex session file's last rate_limits snapshot (stale between runs)
     # || true: with many session files, head's early exit SIGPIPEs ls under pipefail
     f=$(ls -t "$path"/*/*/*/*.jsonl 2>/dev/null | head -1 || true)

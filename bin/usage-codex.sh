@@ -6,7 +6,10 @@
 # a one-line codex ping refreshes it for pennies.
 . "$(dirname "$0")/lib.sh"
 
-SESS="${CODEX_SESSIONS:-$HOME/.codex/sessions}"
+# Multi-account: set CODEX_HOME to the account's config dir (default ~/.codex).
+# Sessions, auth, and the refresh ping all follow it.
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+SESS="${CODEX_SESSIONS:-$CODEX_HOME/sessions}"
 newest() { ls -t "$SESS"/*/*/*/*.jsonl 2>/dev/null | head -1 || true; }
 
 f=$(newest)
