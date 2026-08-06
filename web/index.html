@@ -259,8 +259,8 @@ async function refresh() {
 
   const w = s.workers || [];
   document.getElementById("workers").innerHTML = w.length
-    ? "<table><tr><th>account</th><th>pid</th><th>running for</th></tr>" +
-      w.map(p => `<tr><td>${esc(p.account)}</td><td>${p.pid}</td><td>${fmtDur(p.uptime_secs)}</td></tr>`).join("") + "</table>"
+    ? "<table><tr><th>account</th><th>role</th><th>pid</th><th>running for</th></tr>" +
+      w.map(p => `<tr><td>${esc(p.account)}</td><td>${p.role === "lane batch" ? esc(p.role) : `<span class="kind">${esc(p.role || "agent")}</span>`}</td><td>${p.pid}</td><td>${fmtDur(p.uptime_secs)}</td></tr>`).join("") + "</table>"
     : `<div class="empty">no agent sessions running</div>`;
 
   const c = s.claimed || [];

@@ -59,9 +59,18 @@ while read -r pid etimes rest; do
       acct=${env_lane:-${DIR2NAME[${cfg:-$HOME/.claude}]:-Claude}} ;;
   esac
   [ -n "$acct" ] || continue
-  LIVE[$acct]=$(( ${LIVE[$acct]:-0} + 1 ))
-  proc_rows+=("$(jq -n --arg a "$acct" --argjson pid "$pid" --argjson up "$etimes" \
-    '{account:$a, pid:$pid, uptime_secs:$up}')")
+  # role from the session's own prompt text — an orchestration session billed to an
+  # account is NOT that account's lane worker
+  role="agent"
+  case "$rest" in
+    *"batch orchestrator"*) role="lane batch" ;;
+    *"issue scanner"*)      role="scanner" ;;
+    *"campaign analyst"*)   role="campaign" ;;
+    *"release engineer"*)   role="promotion" ;;
+  esac
+  [ "$role" = "lane batch" ] && LIVE[$acct]=$(( ${LIVE[$acct]:-0} + 1 ))
+  proc_rows+=("$(jq -n --arg a "$acct" --arg role "$role" --argjson pid "$pid" --argjson up "$etimes" \
+    '{account:$a, role:$role, pid:$pid, uptime_secs:$up}')")
 done < <(ps -u "$(id -un)" -o pid=,etimes=,args= | grep -E 'claude -p|codex exec' | grep -v -e 'bash -c' -e grep)
 
 dispatch=$(systemctl is-active issue-pilot-dispatch.service 2>/dev/null || true)
