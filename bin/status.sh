@@ -47,6 +47,7 @@ for a in "${ACCTS[@]}"; do
 done
 
 proc_rows=()
+declare -A LIVE=()
 while read -r pid etimes rest; do
   [ -n "$pid" ] || continue
   acct="" env_lane=""
@@ -58,6 +59,7 @@ while read -r pid etimes rest; do
       acct=${env_lane:-${DIR2NAME[${cfg:-$HOME/.claude}]:-Claude}} ;;
   esac
   [ -n "$acct" ] || continue
+  LIVE[$acct]=$(( ${LIVE[$acct]:-0} + 1 ))
   proc_rows+=("$(jq -n --arg a "$acct" --argjson pid "$pid" --argjson up "$etimes" \
     '{account:$a, pid:$pid, uptime_secs:$up}')")
 done < <(ps -u "$(id -un)" -o pid=,etimes=,args= | grep -E 'claude -p|codex exec' | grep -v -e 'bash -c' -e grep)
@@ -92,13 +94,15 @@ lane_rows=()
 for id in ${LANES:-}; do
   conc=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
   started=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
-  lane_rows+=("$(jq -n --arg id "$id" --arg label "$(lane_get "$id" LABEL "$id")" \
+  l_label=$(lane_get "$id" LABEL "$id")
+  lane_rows+=("$(jq -n --arg id "$id" --arg label "$l_label" \
     --arg mode "$(lane_get "$id" MODE off)" --argjson conc "$conc" \
     --argjson disabled "$(lane_disabled "$id" && echo true || echo false)" \
+    --argjson live "${LIVE[$l_label]:-0}" \
     --arg model "$(lane_get "$id" MODEL)" --arg effort "$(lane_get "$id" EFFORT)" \
     --argjson started "$started" --argjson target "${BATCH_SIZE:-0}" \
     --argjson prs "$all_prs" '
-    {id:$id, label:$label, mode:$mode, concurrency:$conc, disabled:$disabled, model:$model, effort:$effort,
+    {id:$id, label:$label, mode:$mode, concurrency:$conc, disabled:$disabled, workers_live:$live, model:$model, effort:$effort,
      batch_started:(if $started==0 then null else $started end),
      batch_target:$target,
      batch_done:([$prs[] | select((.headRefName|startswith("pilot-"+$id+"/"))

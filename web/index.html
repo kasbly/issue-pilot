@@ -186,9 +186,14 @@ async function refresh() {
           ? `${l.batch_done} done / ${Math.max(l.batch_target - l.batch_done, 0)} left of ${l.batch_target} picked · running ${fmtDur(now - l.batch_started)}`
           : "—";
         const model = l.model ? esc(l.model) + (l.effort ? ` <span class="kind">${esc(l.effort)}</span>` : "") : "—";
+        const live = l.workers_live || 0;
         const state = l.disabled ? `<span class="dim">disabled</span>`
           : off ? `<span class="warn">paused</span>`
-          : on ? `on · ${l.concurrency} subagents` : "idle";
+          : !on ? "idle"
+          : live > 0 ? `<span class="ok">working · target ${l.concurrency} subagents</span>`
+          : (s.refill && s.refill.ready === 0)
+            ? `<span class="warn">wants ${l.concurrency} — queue empty</span>`
+            : `starting · wants ${l.concurrency}`;
         return `<tr>
           <td><div class="toggle ${l.disabled ? "" : "on"}" onclick="this.classList.toggle('on'); api({action:'lane_toggle',id:'${esc(l.id)}'}, '${esc(l.label)} ${l.disabled ? "activated" : "deactivated"}')"></div></td>
           <td>${esc(l.label)}</td><td>${model}</td>
