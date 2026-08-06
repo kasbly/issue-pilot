@@ -11,7 +11,7 @@ Actions (POST /api/action, JSON body {"action": ..., ...}):
   campaign_pause / campaign_resume / campaign_done
 """
 import json, os, re, subprocess, sys
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 HOME = os.environ.get("ISSUE_PILOT_HOME", "/opt/issue-pilot")
 CONF = os.environ.get("ISSUE_PILOT_CONF", os.path.join(HOME, "issue-pilot.conf"))
@@ -167,4 +167,5 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    HTTPServer((BIND, PORT), Handler).serve_forever()
+    # threading: a slow action (campaign_set + status regen) must not block page loads
+    ThreadingHTTPServer((BIND, PORT), Handler).serve_forever()

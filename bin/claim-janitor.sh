@@ -40,4 +40,10 @@ for d in /tmp/pilot-* /tmp/promote-*; do
 done
 [ -d "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}/.git" ] && git -C "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" worktree prune 2>/dev/null || true
 [ "$wt_removed" -gt 0 ] && log "janitor: removed $wt_removed stale worktree(s)"
+
+# workers are told not to install into the scheduler home; sweep it anyway
+for d in "$ISSUE_PILOT_HOME/node_modules" "$ISSUE_PILOT_HOME"/.pnpm-store* "$ISSUE_PILOT_HOME/pnpm-store" "$ISSUE_PILOT_HOME/pnpm-lock.yaml"; do
+  [ -e "$d" ] || continue
+  rm -rf "$d" && log "janitor: removed stray $d from the scheduler home"
+done
 exit 0
