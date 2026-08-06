@@ -119,7 +119,8 @@ class Handler(SimpleHTTPRequestHandler):
             if action == "lane_mode":
                 lane = req.get("id", "")
                 mode = req.get("mode", "")
-                if not NAME_RE.match(lane) or mode not in ("always", "window", "off"):
+                # mode is the lane's pacing personality; on/off is the toggle's job
+                if not NAME_RE.match(lane) or mode not in ("always", "window"):
                     return self._reply(400, {"error": "bad lane id or mode"})
                 with open(CONF) as f:
                     text = f.read()

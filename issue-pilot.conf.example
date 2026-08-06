@@ -46,8 +46,9 @@ BATCH_SIZE=25                        # issues per batch session (small batches s
 # per-lane vars LANE_<id>_*:
 #   LABEL         display name (shown in logs, status page, claim comments)
 #   MODE          always = run whenever ready issues exist, fixed concurrency
-#                 window = auto-activate near quota reset to drain leftover usage
-#                 off    = disabled
+#                 window = pace follower (work when behind the burn line, idle when not)
+#                 off    = parked (config-level retire; day-to-day on/off is the
+#                          panel's lane toggle, which pauses without touching MODE)
 #   CMD           batch command; receives CONCURRENCY, BATCH_SIZE, GH_REPO, BASE_BRANCH,
 #                 AUTO_MERGE, ISSUE_ORDER, SORT_DIR, READY_LABEL, CLAIM_LABEL, REPO_DIR,
 #                 LANE_NAME, LANE_SLUG in its environment

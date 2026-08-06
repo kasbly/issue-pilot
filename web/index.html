@@ -193,7 +193,7 @@ async function refresh() {
           <td><div class="toggle ${l.disabled ? "" : "on"}" onclick="this.classList.toggle('on'); api({action:'lane_toggle',id:'${esc(l.id)}'}, '${esc(l.label)} ${l.disabled ? "activated" : "deactivated"}')"></div></td>
           <td>${esc(l.label)}</td><td>${model}</td>
           <td><select onchange="api({action:'lane_mode',id:'${esc(l.id)}',mode:this.value}, '${esc(l.label)} mode → ' + this.value)">
-            ${["always","window","off"].map(m => `<option${l.mode === m ? " selected" : ""}>${m}</option>`).join("")}
+            ${["always", "window"].concat(l.mode === "off" ? ["off"] : []).map(m => `<option${l.mode === m ? " selected" : ""}>${m}</option>`).join("")}
           </select></td>
           <td class="${on ? "ok" : ""}">${state}</td>
           <td>${batch}</td><td>${l.total_done}</td></tr>`;
