@@ -27,18 +27,47 @@ cd "$ISSUE_PILOT_HOME"
 # SCANNER_ROTATION (= the enabled set, in order). state/next-scanner, written by
 # the web panel's "Run next", overrides the rotation once.
 if [ -n "${SCANNER_ROTATION:-}" ]; then
+  # per-scanner cadence: SCANNER_INTERVAL_<dim> ("3d", "12h", or seconds) is the
+  # minimum time between runs of that dimension; rotation skips resting scanners
+  interval_secs() {
+    case "$1" in
+      "") echo 0 ;;
+      *d) echo $(( ${1%d} * 86400 )) ;;
+      *h) echo $(( ${1%h} * 3600 )) ;;
+      *)  echo "$1" ;;
+    esac
+  }
+  scanner_eligible() {
+    local key v iv last_ts
+    key=$(tr '-' '_' <<<"$1"); v="SCANNER_INTERVAL_$key"
+    iv=$(interval_secs "${!v:-}")
+    [ "$iv" -eq 0 ] && return 0
+    last_ts=$(awk -v d="$1" '$1 == d { print $2 }' "$STATE_DIR/scanner-runs" 2>/dev/null)
+    [ -z "$last_ts" ] && return 0
+    [ $(( $(date +%s) - last_ts )) -ge "$iv" ]
+  }
+
   if [ -s "$STATE_DIR/next-scanner" ]; then
     next=$(cat "$STATE_DIR/next-scanner")
     rm -f "$STATE_DIR/next-scanner"
-    log "scanner rotation: dimension=$next (one-shot override)"
+    log "scanner rotation: dimension=$next (one-shot override, interval bypassed)"
   else
     last=$(cat "$STATE_DIR/last-scanner" 2>/dev/null || true)
-    next=""; prev=""
-    for d in $SCANNER_ROTATION; do
-      [ -z "$next" ] && [ "$prev" = "$last" ] && [ -n "$last" ] && next=$d
-      prev=$d
-    done
-    [ -n "$next" ] || next=${SCANNER_ROTATION%% *}
+    ring=""
+    if [ -n "$last" ]; then
+      seen=0
+      for d in $SCANNER_ROTATION; do [ "$seen" = 1 ] && ring="$ring $d"; [ "$d" = "$last" ] && seen=1; done
+      for d in $SCANNER_ROTATION; do [ "$d" = "$last" ] && break; ring="$ring $d"; done
+      [ "$seen" = 1 ] && ring="$ring $last" || ring="$SCANNER_ROTATION"
+    else
+      ring="$SCANNER_ROTATION"
+    fi
+    next=""
+    for d in $ring; do scanner_eligible "$d" && { next=$d; break; }; done
+    if [ -z "$next" ]; then
+      log "scanner: every rotation dimension is resting (per-scanner intervals) — skipping this refill"
+      exit 0
+    fi
     log "scanner rotation: dimension=$next"
   fi
   export SCANNER_DIMENSION=$next
@@ -57,6 +86,7 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
 fi
 
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
+export ERROR_LOG_CMD="${ERROR_LOG_CMD:-}" CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}"
 pick_claude_account || { log "scanner deferred — next hourly check retries"; exit 0; }
 scan_start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 bash -c "$SCANNER_CMD"

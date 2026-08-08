@@ -171,14 +171,16 @@ for d in $all_dims; do
   d_effort="${!ev_var:-${SCANNER_EFFORT_DEFAULT:-${SCANNER_EFFORT:-}}}"
   d_last=$(awk -v d="$d" '$1 == d { print $2 }' "$STATE_DIR/scanner-runs" 2>/dev/null || true)
   d_filed=$(awk -v d="$d" '$1 == d && NF >= 3 { print $3 }' "$STATE_DIR/scanner-runs" 2>/dev/null || true)
+  iv_var="SCANNER_INTERVAL_$dim_key"; d_interval="${!iv_var:-}"
   scan_rows+=("$(jq -n --arg name "$d" --argjson enabled "$enabled" --arg desc "$desc" --arg src "$src" \
     --arg model "$d_model" --arg effort "$d_effort" --argjson last "${d_last:-0}" \
-    --arg filed "${d_filed:-}" \
+    --arg filed "${d_filed:-}" --arg interval "$d_interval" \
     --argjson next "$([ "$d" = "$peek_next" ] && echo true || echo false)" \
     '{name:$name, enabled:$enabled, desc:$desc, source:(if $src=="" then "rotation-only" else $src end),
       model:(if $model=="" then null else $model end), effort:(if $effort=="" then null else $effort end),
       last_run:(if $last==0 then null else $last end),
-      last_filed:(if $filed=="" then null else ($filed | tonumber) end), queued_next:$next}')")
+      last_filed:(if $filed=="" then null else ($filed | tonumber) end),
+      interval:(if $interval=="" then null else $interval end), queued_next:$next}')")
 done
 
 # campaign state
