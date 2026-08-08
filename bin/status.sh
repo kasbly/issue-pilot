@@ -170,12 +170,15 @@ for d in $all_dims; do
   d_model="${!mv_var:-${SCANNER_MODEL_DEFAULT:-${SCANNER_MODEL:-}}}"
   d_effort="${!ev_var:-${SCANNER_EFFORT_DEFAULT:-${SCANNER_EFFORT:-}}}"
   d_last=$(awk -v d="$d" '$1 == d { print $2 }' "$STATE_DIR/scanner-runs" 2>/dev/null || true)
+  d_filed=$(awk -v d="$d" '$1 == d && NF >= 3 { print $3 }' "$STATE_DIR/scanner-runs" 2>/dev/null || true)
   scan_rows+=("$(jq -n --arg name "$d" --argjson enabled "$enabled" --arg desc "$desc" --arg src "$src" \
     --arg model "$d_model" --arg effort "$d_effort" --argjson last "${d_last:-0}" \
+    --arg filed "${d_filed:-}" \
     --argjson next "$([ "$d" = "$peek_next" ] && echo true || echo false)" \
     '{name:$name, enabled:$enabled, desc:$desc, source:(if $src=="" then "rotation-only" else $src end),
       model:(if $model=="" then null else $model end), effort:(if $effort=="" then null else $effort end),
-      last_run:(if $last==0 then null else $last end), queued_next:$next}')")
+      last_run:(if $last==0 then null else $last end),
+      last_filed:(if $filed=="" then null else ($filed | tonumber) end), queued_next:$next}')")
 done
 
 # campaign state

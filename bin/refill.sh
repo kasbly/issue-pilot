@@ -58,11 +58,15 @@ fi
 
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
 pick_claude_account || { log "scanner deferred — next hourly check retries"; exit 0; }
+scan_start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 bash -c "$SCANNER_CMD"
-# record when this dimension last ran (status page shows it per scanner)
+# record when this dimension last ran and how many issues that run filed
 if [ -n "${SCANNER_DIMENSION:-}" ]; then
+  filed=$(gh issue list -R "$GH_REPO" --state all --limit 100 \
+    --search "author:@me created:>=$scan_start_iso" --json number --jq length 2>/dev/null || echo 0)
+  log "scanner run ($SCANNER_DIMENSION) filed $filed issue(s)"
   { grep -v "^$SCANNER_DIMENSION " "$STATE_DIR/scanner-runs" 2>/dev/null || true; \
-    echo "$SCANNER_DIMENSION $(date +%s)"; } > "$STATE_DIR/scanner-runs.tmp"
+    echo "$SCANNER_DIMENSION $(date +%s) $filed"; } > "$STATE_DIR/scanner-runs.tmp"
   mv "$STATE_DIR/scanner-runs.tmp" "$STATE_DIR/scanner-runs"
 fi
 bash "$PKG_DIR/bin/label-guard.sh" || true
