@@ -156,7 +156,13 @@ for d in $all_dims; do
   desc=""; src=""
   if [ -f "$ISSUE_PILOT_HOME/scanners/$d.md" ]; then
     desc=$(head -1 "$ISSUE_PILOT_HOME/scanners/$d.md")
-    src="custom"
+    # when working dir == package dir (git-clone install), tracked files are the
+    # shipped library, not user overrides
+    if [ "$ISSUE_PILOT_HOME" = "$PKG_DIR" ] && git -C "$PKG_DIR" ls-files --error-unmatch "scanners/$d.md" >/dev/null 2>&1; then
+      src="built-in"
+    else
+      src="custom"
+    fi
   elif grep -qx "$d" <<<"$repo_dims"; then
     desc=$(git -C "$rdir" show "$ref:scanners/$d.md" 2>/dev/null | head -1)
     src="repo"
