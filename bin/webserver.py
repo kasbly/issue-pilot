@@ -7,6 +7,8 @@ Actions (POST /api/action, JSON body {"action": ..., ...}):
   lane_toggle      {id}     enable/disable one agent lane (state/lane-<id>.disabled)
   scanner_toggle   {name}   add/remove a scanner in SCANNER_ROTATION (conf edit)
   scanner_run_next {name}   make the next refill run this scanner once
+  scanner_run_now {name}    launch refill immediately for this scanner, bypassing
+                            the queue threshold and the Claude pace gate (one run)
   campaign_set     {goal}   start a new campaign
   campaign_pause / campaign_resume / campaign_done
 """
@@ -135,7 +137,7 @@ class Handler(SimpleHTTPRequestHandler):
                 kick("pace.sh")  # apply the new mode now, not at the next hourly tick
                 refresh_status()
                 return self._reply(200, {"ok": True, "mode": mode})
-            if action in ("scanner_toggle", "scanner_run_next"):
+            if action in ("scanner_toggle", "scanner_run_next", "scanner_run_now"):
                 name = req.get("name", "")
                 if not NAME_RE.match(name):
                     return self._reply(400, {"error": "bad scanner name"})
@@ -148,6 +150,12 @@ class Handler(SimpleHTTPRequestHandler):
                 os.makedirs(os.path.join(HOME, "state"), exist_ok=True)
                 with open(os.path.join(HOME, "state", "next-scanner"), "w") as f:
                     f.write(name + "\n")
+                if action == "scanner_run_now":
+                    # force flag: refill bypasses the queue threshold and the Claude
+                    # pace gate for this one run, then launch refill immediately
+                    with open(os.path.join(HOME, "state", "refill-force"), "w") as f:
+                        f.write("1\n")
+                    kick("refill.sh")
                 refresh_status()
                 return self._reply(200, {"ok": True, "next": name})
             if action == "campaign_set":

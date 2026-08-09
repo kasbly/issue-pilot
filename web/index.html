@@ -245,7 +245,8 @@ async function refresh() {
         <td>${x.model ? `${esc(x.model)}${x.effort ? ` <span class="kind">${esc(x.effort)}</span>` : ""}` : "—"}</td>
         <td class="${x.enabled && x.last_run && (now - x.last_run) > 604800 ? "warn" : "dim"}">${x.last_run ? fmtDur(now - x.last_run) + " ago" + (x.last_filed != null ? ` · <span class="${x.last_filed > 0 ? "ok" : ""}">${x.last_filed} filed</span>` : "") : "never"}${x.interval ? ` <span class="kind">every ≥${esc(x.interval)}</span>` : ""}</td>
         <td class="dim">${esc(x.desc || "custom scanner")}</td>
-        <td><button onclick="api({action:'scanner_run_next',name:'${esc(x.name)}'}, '${esc(x.name)} queued as next refill')">Run next</button></td>
+        <td><button onclick="api({action:'scanner_run_next',name:'${esc(x.name)}'}, '${esc(x.name)} queued as next refill')">Run next</button>
+            <button onclick="api({action:'scanner_run_now',name:'${esc(x.name)}'}, '${esc(x.name)} launching now — bypasses the pace line (uses quota)')">Run now</button></td>
       </tr>`).join("") + `</table>
       <div class="row" style="padding:10px 0 12px"><span class="dim">a scanner = one .md file — built-ins ship with issue-pilot, your own in <b>&lt;working-dir&gt;/scanners/</b> override them; enabled ones rotate strictly, one per refill</span></div></div>`
     : `<div class="empty">no scanners resolved</div>`;

@@ -10,15 +10,27 @@ bash "$PKG_DIR/bin/claim-janitor.sh" || true
 count=$(ready_issues | wc -l | tr -d ' ')
 log "ready issues: $count (threshold: $REFILL_THRESHOLD)"
 
-if [ "$count" -ge "$REFILL_THRESHOLD" ]; then
+# panel "Run now": state/refill-force bypasses the queue threshold and the Claude
+# pace gate for one run — a human clicked, so the quota hit is deliberate
+force=""
+[ -f "$STATE_DIR/refill-force" ] && force=1
+
+if [ -z "$force" ] && [ "$count" -ge "$REFILL_THRESHOLD" ]; then
   log "queue healthy, nothing to do"
   echo "$(date +%s) skipped queue=$count" >"$STATE_DIR/refill-last"
   exit 0
 fi
 
 # ponytail: flock so an overlapping timer fire never runs two scanners at once
+# (a force click during a running scan keeps its flag and applies to the next run)
 exec 9>"$STATE_DIR/refill.lock"
 flock -n 9 || { log "refill already running, skipping"; exit 0; }
+if [ -n "$force" ]; then
+  rm -f "$STATE_DIR/refill-force"
+  # still route to the least-ahead account, just without the behind-pace requirement
+  export ORCH_MAX_DRIFT="${FORCE_MAX_DRIFT:-9999}" ORCH_MAX_USED="${FORCE_MAX_USED:-98}"
+  log "manual force-run — bypassing queue threshold and Claude pace gate"
+fi
 
 log "queue low — running scanner"
 cd "$ISSUE_PILOT_HOME"
