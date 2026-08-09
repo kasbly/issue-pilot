@@ -16,7 +16,8 @@ Hunt for:
 - Dead weight: steps that always fail and are ignored, caches that never hit,
   artifacts nobody consumes, retry loops masking real failures.
 
-Rules: at most 8 issues; every issue names the exact workflow/job/step, links the
+Rules: no cap — file every finding that passes, none that don't (zero is a fine
+result); every issue names the exact workflow/job/step, links the
 run URLs that prove the pattern, quantifies the cost (minutes per run × runs per
 day, or merge-trust impact), and proposes the specific fix. Do not file style
 opinions about workflow files — only measured problems from run history.

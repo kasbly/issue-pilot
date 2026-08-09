@@ -2,7 +2,9 @@ DIMENSION: test-gaps — the untested code most likely to break silently.
 
 ANTI-BLOAT CONTRACT (this scanner has been disabled before for flooding repos with
 low-value tests — violating these rules gets it disabled again):
-- File AT MOST 5 issues per run. If fewer than 5 gaps clear the bar below, file fewer.
+- No quota, no cap: file every gap that clears the bar below and nothing that
+  doesn't. Zero filed is a fine result. If you find yourself past ~15, stop and
+  re-verify each against the bar — volume like that usually means the bar slipped.
 - Every issue must EXTEND an existing spec file, named explicitly in the issue body.
   Creating a new spec file is allowed only when no spec exists for that subject at
   all — and the issue must say so.
