@@ -148,7 +148,7 @@ async function refresh() {
     tile("PRs merged today", t.merged_today ?? "–", "ok") +
     tile("PRs merged yesterday", t.merged_yesterday ?? "–");
   const lastR = r.last
-    ? `last refill check ${fmtDur(now - r.last.ts)} ago — ${r.last.action === "ran" ? "scanner RAN" : "skipped"} (${esc(r.last.detail)}, threshold ${r.threshold})`
+    ? `last refill check ${fmtDur(now - r.last.ts)} ago — ${r.last.action === "ran" ? "scanner RAN" : r.last.action === "deferred" ? "DEFERRED — no Claude account behind its pace line" : "skipped"} (${esc(r.last.detail)}, threshold ${r.threshold})`
     : `no refill check recorded yet (threshold ${r.threshold ?? "?"})`;
   const scanModel = r.scanner_model ? ` · scanner: ${r.scanner_model}${r.scanner_effort ? " (" + r.scanner_effort + ")" : ""}` : "";
   document.getElementById("refill").textContent =

@@ -71,7 +71,6 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
     log "scanner rotation: dimension=$next"
   fi
   export SCANNER_DIMENSION=$next
-  echo "$next" >"$STATE_DIR/last-scanner"
   # methodology file: working dir overrides the scanned repo's scanners/, which
   # overrides the built-in library
   for base in "$ISSUE_PILOT_HOME/scanners" "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}/scanners" "$PKG_DIR/scanners"; do
@@ -87,7 +86,14 @@ fi
 
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
 export ERROR_LOG_CMD="${ERROR_LOG_CMD:-}" CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}"
-pick_claude_account || { log "scanner deferred — next hourly check retries"; exit 0; }
+if ! pick_claude_account; then
+  log "scanner deferred — next hourly check retries"
+  echo "$(date +%s) deferred queue=$count" >"$STATE_DIR/refill-last"
+  exit 0
+fi
+# advance the rotation pointer only when a scan actually launches — a deferred
+# hour must not burn every dimension's turn
+[ -n "${SCANNER_DIMENSION:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/last-scanner"
 scan_start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 bash -c "$SCANNER_CMD"
 # record when this dimension last ran and how many issues that run filed
