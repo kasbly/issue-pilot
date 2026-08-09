@@ -74,9 +74,12 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
   export SCANNER_DIMENSION=$next
   # methodology file: working dir overrides the scanned repo's scanners/, which
   # overrides the built-in library
-  for base in "$ISSUE_PILOT_HOME/scanners" "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}/scanners" "$PKG_DIR/scanners"; do
-    if [ -f "$base/$next.md" ]; then export SCANNER_PROMPT_FILE="$base/$next.md"; break; fi
-  done
+  resolve_prompt_file() {
+    for base in "$ISSUE_PILOT_HOME/scanners" "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}/scanners" "$PKG_DIR/scanners"; do
+      if [ -f "$base/$1.md" ]; then export SCANNER_PROMPT_FILE="$base/$1.md"; return; fi
+    done
+  }
+  resolve_prompt_file "$next"
   # per-dimension model/effort (hyphens become underscores in the var name):
   # SCANNER_MODEL_security="fable" beats SCANNER_MODEL_DEFAULT
   dim_key=$(tr '-' '_' <<<"$next")
@@ -93,11 +96,22 @@ if ! pick_claude_account; then
   # in SCANNER_FALLBACK_DIMS may scan on a Codex account instead. Keep this list to
   # evidence-gated scanners (ci-health, deps, prod-errors, ui-quality) — a wrong
   # issue from a judgment-heavy scanner costs a lane hours downstream.
-  fb=""
+  # If the dim whose turn it is isn't fallback-listed, walk the rest of the ring —
+  # a Claude-rest hour shouldn't idle while an evidence-gated dim is due. The
+  # deferred dim keeps its turn: the pointer advances to whichever dim runs.
+  fbdim=""
   if [ -n "${SCANNER_FALLBACK_CMD:-}" ] && [ -n "${SCANNER_DIMENSION:-}" ]; then
-    case " ${SCANNER_FALLBACK_DIMS:-} " in *" $SCANNER_DIMENSION "*) fb=1 ;; esac
+    for d in $SCANNER_DIMENSION ${ring:-}; do
+      case " ${SCANNER_FALLBACK_DIMS:-} " in *" $d "*) ;; *) continue ;; esac
+      scanner_eligible "$d" || continue
+      fbdim=$d; break
+    done
   fi
-  if [ -n "$fb" ] && read -r fb_name fb_home < <(bash "$PKG_DIR/bin/pick-codex-account.sh" 2>/dev/null) && [ -n "${fb_home:-}" ]; then
+  if [ -n "$fbdim" ] && read -r fb_name fb_home < <(bash "$PKG_DIR/bin/pick-codex-account.sh" 2>/dev/null) && [ -n "${fb_home:-}" ]; then
+    if [ "$fbdim" != "$SCANNER_DIMENSION" ]; then
+      export SCANNER_DIMENSION=$fbdim
+      resolve_prompt_file "$fbdim"
+    fi
     export CODEX_HOME="$fb_home"
     export SCANNER_RUN_MODEL="${SCANNER_FALLBACK_MODEL:-$SCANNER_RUN_MODEL}"
     export SCANNER_RUN_EFFORT="${SCANNER_FALLBACK_EFFORT:-$SCANNER_RUN_EFFORT}"
