@@ -67,10 +67,16 @@ def campaign(*args):
     ).returncode == 0
 
 
-def kick(script):
+def kick(script, logfile=None):
+    # logfile: append the script's output to state/<logfile> so panel-triggered
+    # runs stay auditable (timer-triggered runs log to the journal instead)
+    out = subprocess.DEVNULL
+    if logfile:
+        os.makedirs(STATE, exist_ok=True)
+        out = open(os.path.join(STATE, logfile), "a")
     subprocess.Popen(
         ["bash", os.path.join(PKG, "bin", script)],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdout=out, stderr=subprocess.STDOUT if logfile else subprocess.DEVNULL,
     )
 
 
@@ -155,7 +161,7 @@ class Handler(SimpleHTTPRequestHandler):
                     # pace gate for this one run, then launch refill immediately
                     with open(os.path.join(HOME, "state", "refill-force"), "w") as f:
                         f.write("1\n")
-                    kick("refill.sh")
+                    kick("refill.sh", logfile="refill.log")
                 refresh_status()
                 return self._reply(200, {"ok": True, "next": name})
             if action == "campaign_set":
