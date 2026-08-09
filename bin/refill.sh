@@ -86,16 +86,33 @@ fi
 
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
 export ERROR_LOG_CMD="${ERROR_LOG_CMD:-}" CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}"
+RUN_CMD="$SCANNER_CMD"
 if ! pick_claude_account; then
-  log "scanner deferred — next hourly check retries"
-  echo "$(date +%s) deferred queue=$count" >"$STATE_DIR/refill-last"
-  exit 0
+  # Codex fallback: while every Claude account rests at its pace line, dims listed
+  # in SCANNER_FALLBACK_DIMS may scan on a Codex account instead. Keep this list to
+  # evidence-gated scanners (ci-health, deps, prod-errors, ui-quality) — a wrong
+  # issue from a judgment-heavy scanner costs a lane hours downstream.
+  fb=""
+  if [ -n "${SCANNER_FALLBACK_CMD:-}" ] && [ -n "${SCANNER_DIMENSION:-}" ]; then
+    case " ${SCANNER_FALLBACK_DIMS:-} " in *" $SCANNER_DIMENSION "*) fb=1 ;; esac
+  fi
+  if [ -n "$fb" ] && read -r fb_name fb_home < <(bash "$PKG_DIR/bin/pick-codex-account.sh" 2>/dev/null) && [ -n "${fb_home:-}" ]; then
+    export CODEX_HOME="$fb_home"
+    export SCANNER_RUN_MODEL="${SCANNER_FALLBACK_MODEL:-$SCANNER_RUN_MODEL}"
+    export SCANNER_RUN_EFFORT="${SCANNER_FALLBACK_EFFORT:-$SCANNER_RUN_EFFORT}"
+    RUN_CMD="$SCANNER_FALLBACK_CMD"
+    log "scanner fallback: running $SCANNER_DIMENSION on Codex account '$fb_name' ($SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT)"
+  else
+    log "scanner deferred — next hourly check retries"
+    echo "$(date +%s) deferred queue=$count" >"$STATE_DIR/refill-last"
+    exit 0
+  fi
 fi
 # advance the rotation pointer only when a scan actually launches — a deferred
 # hour must not burn every dimension's turn
 [ -n "${SCANNER_DIMENSION:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/last-scanner"
 scan_start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-bash -c "$SCANNER_CMD"
+bash -c "$RUN_CMD"
 # record when this dimension last ran and how many issues that run filed
 if [ -n "${SCANNER_DIMENSION:-}" ]; then
   filed=$(gh issue list -R "$GH_REPO" --state all --limit 100 \

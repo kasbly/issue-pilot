@@ -31,6 +31,16 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 #SCANNER_INTERVAL_deps="7d"
 #SCANNER_INTERVAL_security="3d"
 #SCANNER_INTERVAL_test-gaps is written SCANNER_INTERVAL_test_gaps (hyphens → underscores)
+# Codex fallback: when every Claude account is at/ahead of its pace line, dims in
+# SCANNER_FALLBACK_DIMS may scan on a Codex account instead of deferring. Keep the
+# list to evidence-gated scanners — judgment-heavy dims should wait for Claude.
+# Accounts: "name:/path/to/codex-home ..."; the least-used one below
+# SCANNER_FALLBACK_MAX_USED (default 90) runs the scan.
+#CODEX_ACCOUNTS="codex:$HOME/.codex work:$HOME/.codex-work"
+#SCANNER_FALLBACK_DIMS="ci-health deps prod-errors"
+#SCANNER_FALLBACK_CMD='codex exec -m "$SCANNER_RUN_MODEL" -c model_reasoning_effort="$SCANNER_RUN_EFFORT" --dangerously-bypass-approvals-and-sandbox "$(envsubst < examples/scanner.md)"'
+#SCANNER_FALLBACK_MODEL="gpt-5.6-terra"
+#SCANNER_FALLBACK_EFFORT="high"
 # The prod-errors scanner needs a log source; it files nothing until this is set:
 #ERROR_LOG_CMD='ssh prod-host "docker logs --since 24h api 2>&1 | grep -i error | tail -500"'
 # Label guard: after every scan, mechanically repair issues the agent under-labeled
