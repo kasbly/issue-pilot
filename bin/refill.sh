@@ -50,6 +50,7 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
   if [ -s "$STATE_DIR/next-scanner" ]; then
     next=$(cat "$STATE_DIR/next-scanner")
     rm -f "$STATE_DIR/next-scanner"
+    was_override=1
     log "scanner rotation: dimension=$next (one-shot override, interval bypassed)"
   else
     last=$(cat "$STATE_DIR/last-scanner" 2>/dev/null || true)
@@ -103,6 +104,8 @@ if ! pick_claude_account; then
     RUN_CMD="$SCANNER_FALLBACK_CMD"
     log "scanner fallback: running $SCANNER_DIMENSION on Codex account '$fb_name' ($SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT)"
   else
+    # a deferred run must not eat a "Run next" click — restore the override
+    [ -n "${was_override:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/next-scanner"
     log "scanner deferred — next hourly check retries"
     echo "$(date +%s) deferred queue=$count" >"$STATE_DIR/refill-last"
     exit 0
