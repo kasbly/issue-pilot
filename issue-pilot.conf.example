@@ -43,6 +43,13 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 #SCANNER_FALLBACK_EFFORT="high"
 # The prod-errors scanner needs a log source; it files nothing until this is set:
 #ERROR_LOG_CMD='ssh prod-host "docker logs --since 24h api 2>&1 | grep -i error | tail -500"'
+# pr-doctor (runs hourly from refill): when >= PR_DOCTOR_MIN_SAME open pilot PRs
+# fail the SAME check, files ONE base-breakage issue instead of letting every
+# worker fight the shared failure alone. Zero LLM cost.
+#PR_DOCTOR_PREFIX="pilot-"
+#PR_DOCTOR_MIN_SAME=4
+#PR_DOCTOR_LABELS="agent-created,status/approved,type/bug,priority/high"
+#PR_DOCTOR_ASSIGNEE=""
 # Label guard: after every scan, mechanically repair issues the agent under-labeled
 # (type from the [Prefix] in the title, plus the labels/assignee below):
 #SCANNER_GUARD=true

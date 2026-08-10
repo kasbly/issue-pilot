@@ -6,6 +6,8 @@ paused && { log "system paused — refill skipped"; exit 0; }
 
 # hourly housekeeping: release claims whose worker died, so issues re-queue
 bash "$PKG_DIR/bin/claim-janitor.sh" || true
+# and detect base-branch breakage (many pilot PRs red on the same check)
+bash "$PKG_DIR/bin/pr-doctor.sh" || true
 
 count=$(ready_issues | wc -l | tr -d ' ')
 log "ready issues: $count (threshold: $REFILL_THRESHOLD)"

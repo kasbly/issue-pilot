@@ -18,6 +18,15 @@ BASE CHECKOUT: keep ONE shared clone at `$REPO_DIR` — clone $GH_REPO there fir
 it does not exist. Before every batch and every new issue, `git -C $REPO_DIR fetch origin`.
 Local refs go stale; the ONLY branch point you may use is `origin/$BASE_BRANCH`.
 
+FIRST — adopt this lane's abandoned red PRs before claiming anything new:
+list open PRs whose head branch starts with `$LANE_SLUG/` and that have failing
+checks. For each, assign a subagent (these count toward $BATCH_SIZE): rebase onto
+fresh `origin/$BASE_BRANCH` first — the failure may already be fixed on base —
+push, and re-watch checks. If the failure is real and yours, fix it. If the same
+check fails on other lanes' PRs too, the base branch itself is likely broken: do
+NOT patch unrelated tests inside your PR; comment `blocked by base breakage` on
+the PR and move on. Never leave a red PR without a comment saying why.
+
 LOOP — repeat until $BATCH_SIZE issues are done or the queue is empty:
 
 1. Take the next unclaimed issue and claim it BEFORE delegating:
