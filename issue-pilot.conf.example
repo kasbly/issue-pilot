@@ -31,6 +31,17 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 #SCANNER_INTERVAL_deps="7d"
 #SCANNER_INTERVAL_security="3d"
 #SCANNER_INTERVAL_test-gaps is written SCANNER_INTERVAL_test_gaps (hyphens → underscores)
+# Location focus ring: code-reading dims rotate through these areas (comma-
+# separated, entries may be prose) so every corner of the repo gets a deep read on
+# a predictable cycle — without this, each stateless run resamples the same
+# salient hotspots. Exported as $SCANNER_FOCUS to the prompt. Sensor dims
+# (ci-health, prod-errors, ...) should NOT be listed in SCANNER_FOCUS_DIMS.
+#SCANNER_FOCUS_DIMS="bugs security test-gaps product-gap performance"
+#SCANNER_FOCUS_AREAS="src/api,src/web,packages/shared,scripts and tooling"
+# Run ledger: refill exports $SCAN_LEDGER (recent tail) and $LEDGER_FILE to the
+# prompt; the scanner template appends what each run examined / ruled out / left
+# as leads, giving otherwise-stateless runs memory. No keys to set — automatic.
+
 # Codex fallback: when every Claude account is at/ahead of its pace line, dims in
 # SCANNER_FALLBACK_DIMS may scan on a Codex account instead of deferring. Keep the
 # list to evidence-gated scanners — judgment-heavy dims should wait for Claude.

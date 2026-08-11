@@ -5,7 +5,9 @@ or mislabel failures; null/undefined dereferences on optional data; race conditi
 around shared state; off-by-one and boundary mistakes; resource leaks (unclosed
 handles, listeners, intervals); crash paths reachable from user input.
 
-Method: pick a subsystem you have not seen recently and read it deeply — follow the
+Method: deep-read your assigned focus area if one is set; otherwise consult the
+run ledger in your prompt and pick a subsystem no recent run has covered — then
+read it deeply, follow the
 data from entry point to storage and back. Trace what happens when each external
 call fails. A finding is real only if you can name the exact input or sequence that
 triggers it.

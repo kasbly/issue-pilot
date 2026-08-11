@@ -102,6 +102,36 @@ if [ -n "${SCANNER_ROTATION:-}" ]; then
   log "scanner model for $next: $SCANNER_RUN_MODEL ($SCANNER_RUN_EFFORT)"
 fi
 
+# location focus ring: code-reading dims (SCANNER_FOCUS_DIMS) rotate through
+# SCANNER_FOCUS_AREAS (comma-separated; entries may be prose) so every corner of
+# the repo gets a deep read on a predictable cycle instead of each run resampling
+# the same salient hotspots. Sensor dims scan their own data, not the tree.
+export SCANNER_FOCUS=""
+case " ${SCANNER_FOCUS_DIMS:-} " in
+  *" ${SCANNER_DIMENSION:-none} "*)
+    if [ -n "${SCANNER_FOCUS_AREAS:-}" ]; then
+      lastf=$(cat "$STATE_DIR/last-focus" 2>/dev/null || true)
+      IFS=',' read -ra fring <<<"$SCANNER_FOCUS_AREAS"
+      nextf="${fring[0]}"
+      for i in "${!fring[@]}"; do
+        [ "${fring[$i]}" = "$lastf" ] && nextf="${fring[$(( (i + 1) % ${#fring[@]} ))]}"
+      done
+      nextf="${nextf# }"
+      export SCANNER_FOCUS="$nextf"
+      log "scanner focus: $SCANNER_FOCUS"
+    fi
+  ;;
+esac
+
+# run ledger: what previous scans examined, ruled out, and left as leads. The
+# prompt injects the recent tail and orders every run to append its own entry —
+# this is the scanner's memory across otherwise-stateless sessions.
+export LEDGER_FILE="$STATE_DIR/scan-ledger.md"
+if [ -f "$LEDGER_FILE" ]; then
+  tail -n 400 "$LEDGER_FILE" >"$LEDGER_FILE.tmp" && mv "$LEDGER_FILE.tmp" "$LEDGER_FILE"
+fi
+export SCAN_LEDGER="$(tail -n 120 "$LEDGER_FILE" 2>/dev/null || echo '(no previous runs)')"
+
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
 export ERROR_LOG_CMD="${ERROR_LOG_CMD:-}" CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}"
 RUN_CMD="$SCANNER_CMD"
@@ -139,9 +169,10 @@ if ! pick_claude_account; then
     exit 0
   fi
 fi
-# advance the rotation pointer only when a scan actually launches — a deferred
-# hour must not burn every dimension's turn
+# advance the rotation pointers only when a scan actually launches — a deferred
+# hour must not burn every dimension's (or focus area's) turn
 [ -n "${SCANNER_DIMENSION:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/last-scanner"
+[ -n "$SCANNER_FOCUS" ] && echo "$SCANNER_FOCUS" >"$STATE_DIR/last-focus"
 scan_start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 bash -c "$RUN_CMD"
 # record when this dimension last ran and how many issues that run filed
@@ -150,7 +181,7 @@ if [ -n "${SCANNER_DIMENSION:-}" ]; then
     --search "author:@me created:>=$scan_start_iso" --json number --jq length 2>/dev/null || echo 0)
   log "scanner run ($SCANNER_DIMENSION) filed $filed issue(s)"
   { grep -v "^$SCANNER_DIMENSION " "$STATE_DIR/scanner-runs" 2>/dev/null || true; \
-    echo "$SCANNER_DIMENSION $(date +%s) $filed"; } > "$STATE_DIR/scanner-runs.tmp"
+    echo "$SCANNER_DIMENSION $(date +%s) $filed ${SCANNER_FOCUS:-}"; } > "$STATE_DIR/scanner-runs.tmp"
   mv "$STATE_DIR/scanner-runs.tmp" "$STATE_DIR/scanner-runs"
 fi
 bash "$PKG_DIR/bin/label-guard.sh" || true
