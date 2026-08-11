@@ -14,6 +14,11 @@ Method:
 4. For the top clusters, read the actual code at the stack location and understand
    the failure before filing.
 
+The log may contain aggregated sections (e.g. a Sentry issue list with per-error
+event counts, first/last-seen times, and permalinks) alongside raw log lines:
+treat counts as frequency evidence, fetch the full stack trace from the permalink
+when one is given, and include the permalink in the filed issue.
+
 Rules: no cap — file every error cluster that passes, none that don't (zero is a
 fine result); every issue includes the representative stack trace,
 occurrence count and time window, the file:line in current code, what the user
