@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # claim-janitor: release claims whose worker died. Killed batches and crashed
 # subagents leave issues labeled CLAIM_LABEL forever, silently shrinking the queue.
-# A claim is stale when the issue has no PR (head ending in "issue-<n>") and its
-# latest "claimed by" comment is older than JANITOR_STALE_HOURS (default 6 — no
-# healthy worker holds a claim that long without opening a PR).
+# A claim is stale when the issue has no OPEN PR (head ending in "issue-<n>") and
+# its latest "claimed by" comment is older than JANITOR_STALE_HOURS (default 6 —
+# no healthy worker holds a claim that long without opening a PR). Only open PRs
+# count as proof of life: a closed-unmerged PR is a FAILED attempt, and treating
+# it as alive once locked a base-breakage issue for 28h while 47 red PRs piled up.
 . "$(dirname "$0")/lib.sh"
 
 cutoff=$(( $(date +%s) - ${JANITOR_STALE_HOURS:-6} * 3600 ))
-heads=$(gh pr list -R "$GH_REPO" --state all --author "@me" --limit 100 --json headRefName --jq '.[].headRefName' 2>/dev/null || true)
+heads=$(gh pr list -R "$GH_REPO" --state open --author "@me" --limit 300 --json headRefName --jq '.[].headRefName' 2>/dev/null || true)
 
 released=0
 for n in $(gh issue list -R "$GH_REPO" --state open --label "$CLAIM_LABEL" --limit 50 --json number --jq '.[].number' 2>/dev/null); do
