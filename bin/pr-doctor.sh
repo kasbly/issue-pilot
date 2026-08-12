@@ -39,8 +39,13 @@ log "pr-doctor: $(wc -l <<<"$rows" | tr -d ' ') red pilot PR check(s); biggest c
 # stale reds are not evidence of a broken base: after a base fix merges, dozens
 # of pre-fix PR heads stay red until rebased. If recent completed runs on pilot
 # branches include greens, the base is healthy — do not file (and do not flag).
-recent=$(gh run list -R "$GH_REPO" --limit 30 --json conclusion,status,headBranch \
-  --jq '[.[] | select(.status == "completed" and (.headBranch | startswith("'"$PR_PREFIX"'")))] | .[0:6] | map(.conclusion) | join(" ")' 2>/dev/null || true)
+if ! recent=$(gh run list -R "$GH_REPO" --limit 30 --json conclusion,status,headBranch \
+  --jq '[.[] | select(.status == "completed" and (.headBranch | startswith("'"$PR_PREFIX"'")))] | .[0:6] | map(.conclusion) | join(" ")' 2>/dev/null); then
+  # fail closed: filing needs positive evidence the base is broken. An unreadable
+  # probe (API rate limit hit this exact path once) must never produce an alarm.
+  log "pr-doctor: cannot read recent run conclusions (API error/rate limit) — not filing without evidence"
+  exit 0
+fi
 case " $recent " in
   *" success "*)
     log "pr-doctor: base looks healthy (recent pilot runs: $recent) — red PRs are stale heads, not filing"
