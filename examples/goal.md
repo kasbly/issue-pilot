@@ -25,9 +25,14 @@ born red, so nothing matters more than this issue.
 
 FIRST — adopt this lane's abandoned red or conflicting PRs before claiming
 anything new: list open PRs whose head branch starts with `$LANE_SLUG/` and that
-have failing checks or merge conflicts. For each, assign a subagent (these count toward $BATCH_SIZE): rebase onto
-fresh `origin/$BASE_BRANCH` first — the failure may already be fixed on base —
-push, and re-watch checks. If the failure is real and yours, fix it. If the same
+have failing checks or merge conflicts. Skip any whose checks are currently
+queued or running — a fresh run is already in flight. For each adopted PR,
+assign a subagent (these count toward $BATCH_SIZE). A rebase costs a full CI
+run, so spend it only when it can change the outcome: rebase onto fresh
+`origin/$BASE_BRANCH` and push ONLY if the base gained commits after the PR's
+failing run started, or the PR has conflicts. If the base has not moved, the
+failure is this PR's own bug — fix the code directly (the fix push is the CI
+run), never rebase first. If the same
 check fails on other lanes' PRs too, the base branch itself is likely broken: do
 NOT patch unrelated tests inside your PR; comment `blocked by base breakage` on
 the PR and move on. Never leave a red PR without a comment saying why.
