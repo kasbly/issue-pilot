@@ -11,9 +11,10 @@ MIN_SAME="${PR_DOCTOR_MIN_SAME:-4}"              # same check red on >= this man
 ISSUE_TITLE_PREFIX="[CI] Base breakage suspected"
 
 # maintain the base-red flag first: while a suspect issue is open, pace throttles
-# every lane to 1 worker (see pace.sh) so the flood of born-red PRs stops
-existing=$(gh issue list -R "$GH_REPO" --state open --search "\"$ISSUE_TITLE_PREFIX\" in:title" \
-  --json number --jq length 2>/dev/null || echo 0)
+# every lane to 1 worker (see pace.sh) so the flood of born-red PRs stops.
+# (plain list + startswith, NOT --search: the search index lags closes by minutes)
+existing=$(gh issue list -R "$GH_REPO" --state open --limit 100 --json title \
+  --jq '[.[] | select(.title | startswith("'"$ISSUE_TITLE_PREFIX"'"))] | length' 2>/dev/null || echo 0)
 if [ "${existing:-0}" -gt 0 ]; then
   touch "$STATE_DIR/base-red"
 else
@@ -34,6 +35,18 @@ cnt=${top%%$'\t'*}; rest=${top#*$'\t'}; check=${rest%%$'\t'*}; prs=${rest#*$'\t'
 log "pr-doctor: $(wc -l <<<"$rows" | tr -d ' ') red pilot PR check(s); biggest cluster: '$check' on $cnt PR(s)"
 
 [ "$cnt" -ge "$MIN_SAME" ] || exit 0
+
+# stale reds are not evidence of a broken base: after a base fix merges, dozens
+# of pre-fix PR heads stay red until rebased. If recent completed runs on pilot
+# branches include greens, the base is healthy — do not file (and do not flag).
+recent=$(gh run list -R "$GH_REPO" --limit 30 --json conclusion,status,headBranch \
+  --jq '[.[] | select(.status == "completed" and (.headBranch | startswith("'"$PR_PREFIX"'")))] | .[0:6] | map(.conclusion) | join(" ")' 2>/dev/null || true)
+case " $recent " in
+  *" success "*)
+    log "pr-doctor: base looks healthy (recent pilot runs: $recent) — red PRs are stale heads, not filing"
+    exit 0
+  ;;
+esac
 
 # one issue per breakage: skip if an open suspect issue already exists
 [ "${existing:-0}" -gt 0 ] && { log "pr-doctor: suspect issue already open — not filing another"; exit 0; }
