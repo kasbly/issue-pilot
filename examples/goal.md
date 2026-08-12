@@ -55,7 +55,7 @@ LOOP — repeat until $BATCH_SIZE issues are done or the queue is empty:
    - Commit, push, open a PR against `$BASE_BRANCH` with `Closes #N` in the body.
    - Watch CI (`gh pr checks --watch`). On failure: read logs, fix, push. After 3
      failed rounds, comment on the PR what is blocking and report back as blocked.
-   - CI green: apply the MERGE POLICY above — `gh pr merge --squash --delete-branch`
+   - CI green: apply the MERGE POLICY above — `gh pr merge $MERGE_METHOD --delete-branch`
      when merging, otherwise leave the PR open for review.
    - ALWAYS clean up, success or failure: `git -C $REPO_DIR worktree remove --force /tmp/$LANE_SLUG-issue-N`
      (and `git -C $REPO_DIR worktree prune`). Leaked worktrees fill the disk.

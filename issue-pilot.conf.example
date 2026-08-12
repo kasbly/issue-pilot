@@ -54,6 +54,10 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 #SCANNER_FALLBACK_EFFORT="high"
 # The prod-errors scanner needs a log source; it files nothing until this is set:
 #ERROR_LOG_CMD='ssh prod-host "docker logs --since 24h api 2>&1 | grep -i error | tail -500"'
+# Merge method for lanes and merge-janitor — must be one your repo allows
+# (--merge, --squash, or --rebase). Default --merge.
+#MERGE_METHOD="--merge"
+
 # merge-janitor (runs hourly from refill, AUTO_MERGE=true only): merges open
 # pilot PRs that are fully green and conflict-free — the ones whose batch died
 # before CI concluded and that no worker would otherwise ever land.

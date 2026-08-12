@@ -20,7 +20,7 @@ rows=$(gh pr list -R "$GH_REPO" --state open --limit 100 \
 [ -n "$rows" ] || { log "merge-janitor: no green orphan PRs"; exit 0; }
 
 for n in $rows; do
-  if gh pr merge "$n" -R "$GH_REPO" --squash --delete-branch >/dev/null 2>&1; then
+  if gh pr merge "$n" -R "$GH_REPO" ${MERGE_METHOD:---merge} --delete-branch >/dev/null 2>&1; then
     log "merge-janitor: merged green orphan PR #$n"
     merged=$((merged + 1))
   else

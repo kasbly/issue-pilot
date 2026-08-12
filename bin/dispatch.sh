@@ -50,6 +50,7 @@ while true; do
       date +%s >"$STATE_DIR/lane-$id.batch-started"
       CONCURRENCY=$c BATCH_SIZE=$BATCH_SIZE GH_REPO=$GH_REPO \
         BASE_BRANCH="${BASE_BRANCH:-main}" AUTO_MERGE="${AUTO_MERGE:-false}" \
+        MERGE_METHOD="${MERGE_METHOD:---merge}" \
         ISSUE_ORDER="${ISSUE_ORDER:-oldest}" SORT_DIR=$sort_dir \
         READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL \
         REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
