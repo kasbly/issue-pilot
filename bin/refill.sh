@@ -8,6 +8,8 @@ paused && { log "system paused — refill skipped"; exit 0; }
 bash "$PKG_DIR/bin/claim-janitor.sh" || true
 # and detect base-branch breakage (many pilot PRs red on the same check)
 bash "$PKG_DIR/bin/pr-doctor.sh" || true
+# and land green orphan PRs whose batch died before CI concluded
+bash "$PKG_DIR/bin/merge-janitor.sh" || true
 
 count=$(ready_issues | wc -l | tr -d ' ')
 log "ready issues: $count (threshold: $REFILL_THRESHOLD)"

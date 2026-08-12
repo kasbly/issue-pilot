@@ -23,9 +23,9 @@ ZEROTH — base breakage outranks everything: if an open issue titled
 your first task — while the base branch is broken, every other PR you produce is
 born red, so nothing matters more than this issue.
 
-FIRST — adopt this lane's abandoned red PRs before claiming anything new:
-list open PRs whose head branch starts with `$LANE_SLUG/` and that have failing
-checks. For each, assign a subagent (these count toward $BATCH_SIZE): rebase onto
+FIRST — adopt this lane's abandoned red or conflicting PRs before claiming
+anything new: list open PRs whose head branch starts with `$LANE_SLUG/` and that
+have failing checks or merge conflicts. For each, assign a subagent (these count toward $BATCH_SIZE): rebase onto
 fresh `origin/$BASE_BRANCH` first — the failure may already be fixed on base —
 push, and re-watch checks. If the failure is real and yours, fix it. If the same
 check fails on other lanes' PRs too, the base branch itself is likely broken: do

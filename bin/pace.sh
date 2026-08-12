@@ -122,6 +122,10 @@ for id in ${LANES:-}; do
   fi
 done
 
+# one WIP probe per pace tick, shared by every lane (empty on API failure = no throttle)
+wip_count=$(gh pr list -R "$GH_REPO" --state open --limit 100 --json headRefName \
+  --jq '[.[] | select(.headRefName | startswith("'"${PR_DOCTOR_PREFIX:-pilot-}"'"))] | length' 2>/dev/null || true)
+
 for id in ${LANES:-}; do
   label=$(lane_get "$id" LABEL "$id")
   out="$STATE_DIR/lane-$id.concurrency"
@@ -133,6 +137,12 @@ for id in ${LANES:-}; do
   # adopted PRs, without mass-producing doomed ones.
   if [ -f "$STATE_DIR/base-red" ] && [ "$target" -gt 1 ]; then
     log "[$label] base branch red — throttling $target -> 1"
+    target=1
+  fi
+  # WIP limit: when open pilot PRs pile past PR_WIP_LIMIT, stop manufacturing
+  # work-in-flight faster than it lands — throttle until the pile drains
+  if [ -n "${wip_count:-}" ] && [ "$wip_count" -gt "${PR_WIP_LIMIT:-25}" ] && [ "$target" -gt 1 ]; then
+    log "[$label] $wip_count open pilot PRs (> ${PR_WIP_LIMIT:-25}) — throttling $target -> 1"
     target=1
   fi
   echo "$target" >"$out"

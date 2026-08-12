@@ -54,6 +54,13 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 #SCANNER_FALLBACK_EFFORT="high"
 # The prod-errors scanner needs a log source; it files nothing until this is set:
 #ERROR_LOG_CMD='ssh prod-host "docker logs --since 24h api 2>&1 | grep -i error | tail -500"'
+# merge-janitor (runs hourly from refill, AUTO_MERGE=true only): merges open
+# pilot PRs that are fully green and conflict-free — the ones whose batch died
+# before CI concluded and that no worker would otherwise ever land.
+# WIP limit: when open pilot PRs exceed this, pace throttles every lane to 1
+# worker until the pile drains. Flow control, not a punishment.
+#PR_WIP_LIMIT=25
+
 # pr-doctor (runs hourly from refill): when >= PR_DOCTOR_MIN_SAME open pilot PRs
 # fail the SAME check, files ONE base-breakage issue instead of letting every
 # worker fight the shared failure alone. Zero LLM cost.
