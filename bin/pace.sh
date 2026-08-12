@@ -128,6 +128,13 @@ for id in ${LANES:-}; do
   prev=$(cat "$out" 2>/dev/null || echo 0)
   eval "target=\$grant_$id; wanted=\$want_$id"
   [ "$target" -lt "$wanted" ] && log "[$label] capped by resource budget: $wanted -> $target"
+  # base-red (pr-doctor flag): the base branch is broken, so every new PR is born
+  # red. Throttle to 1 worker per lane — enough to fix the breakage and drain
+  # adopted PRs, without mass-producing doomed ones.
+  if [ -f "$STATE_DIR/base-red" ] && [ "$target" -gt 1 ]; then
+    log "[$label] base branch red — throttling $target -> 1"
+    target=1
+  fi
   echo "$target" >"$out"
   if [ "$target" != "$prev" ] && [ -n "${NOTIFY_CMD:-}" ]; then
     MSG="issue-pilot: lane '$label' concurrency $prev -> $target" bash -c "$NOTIFY_CMD" || true

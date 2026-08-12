@@ -10,6 +10,16 @@ PR_PREFIX="${PR_DOCTOR_PREFIX:-pilot-}"          # lane branches look like pilot
 MIN_SAME="${PR_DOCTOR_MIN_SAME:-4}"              # same check red on >= this many PRs => base suspect
 ISSUE_TITLE_PREFIX="[CI] Base breakage suspected"
 
+# maintain the base-red flag first: while a suspect issue is open, pace throttles
+# every lane to 1 worker (see pace.sh) so the flood of born-red PRs stops
+existing=$(gh issue list -R "$GH_REPO" --state open --search "\"$ISSUE_TITLE_PREFIX\" in:title" \
+  --json number --jq length 2>/dev/null || echo 0)
+if [ "${existing:-0}" -gt 0 ]; then
+  touch "$STATE_DIR/base-red"
+else
+  rm -f "$STATE_DIR/base-red"
+fi
+
 rows=$(gh pr list -R "$GH_REPO" --state open --limit 100 \
   --json number,headRefName,statusCheckRollup \
   --jq '.[] | select(.headRefName | startswith("'"$PR_PREFIX"'"))
@@ -26,8 +36,6 @@ log "pr-doctor: $(wc -l <<<"$rows" | tr -d ' ') red pilot PR check(s); biggest c
 [ "$cnt" -ge "$MIN_SAME" ] || exit 0
 
 # one issue per breakage: skip if an open suspect issue already exists
-existing=$(gh issue list -R "$GH_REPO" --state open --search "\"$ISSUE_TITLE_PREFIX\" in:title" \
-  --json number --jq length 2>/dev/null || echo 0)
 [ "${existing:-0}" -gt 0 ] && { log "pr-doctor: suspect issue already open — not filing another"; exit 0; }
 
 body="$cnt open pilot PRs are failing the same check (\`$check\`):$prs
@@ -47,5 +55,5 @@ gh issue create -R "$GH_REPO" \
   --label "${PR_DOCTOR_LABELS:-agent-created,status/approved,type/bug,priority/high}" \
   ${PR_DOCTOR_ASSIGNEE:+--assignee "$PR_DOCTOR_ASSIGNEE"} \
   --body "$body" >/dev/null \
-  && log "pr-doctor: filed base-breakage issue for '$check' ($cnt PRs)" \
+  && { log "pr-doctor: filed base-breakage issue for '$check' ($cnt PRs)"; touch "$STATE_DIR/base-red"; } \
   || log "pr-doctor: issue creation failed"
