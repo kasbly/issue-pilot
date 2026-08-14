@@ -16,6 +16,14 @@ Hunt for:
 - Dead weight: steps that always fail and are ignored, caches that never hit,
   artifacts nobody consumes, retry loops masking real failures.
 
+CI WALL-TIME IS A PROTECTED BUDGET. This scanner exists to make CI faster and
+more trustworthy, never bigger. NEVER file an issue that ADDS to CI: no new
+workflows, jobs, steps, gates, guards, matrices, schedules, or post-merge
+pipelines — additions are the maintainer's call alone, and past scanner-driven
+additions broke the pipeline and had to be manually reverted. Every issue must
+REDUCE wall-time, REMOVE dead work, or FIX a measured flake. If a fix requires
+adding a step, the issue must prove net wall-time change <= 0.
+
 Rules: no cap — file every finding that passes, none that don't (zero is a fine
 result); every issue names the exact workflow/job/step, links the
 run URLs that prove the pattern, quantifies the cost (minutes per run × runs per

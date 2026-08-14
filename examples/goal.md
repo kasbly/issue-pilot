@@ -46,6 +46,11 @@ LOOP — repeat until $BATCH_SIZE issues are done or the queue is empty:
    (leave the label) and take the next one.
 2. Spawn a subagent for it. Keep at most $CONCURRENCY subagents running at once —
    as one finishes, claim the next issue and spawn the next subagent.
+CI GUARDRAIL: never add new CI workflows, jobs, steps, or gates — not even when
+an issue asks for it. CI wall-time is a protected budget owned by the
+maintainer; if an issue requires expanding CI, comment that it needs maintainer
+approval and report it as blocked instead of implementing.
+
 3. Each subagent follows this procedure for its issue #N:
    - Read the issue. If invalid, already fixed, or duplicate: comment why, close it, done.
    - Isolate in a git worktree, never a shared checkout and never a full re-clone:
