@@ -199,7 +199,16 @@ c_assess=$(cat "$CDIR/last-assessment.md" 2>/dev/null || true)
 c_open=0; c_closed=0
 if [ -n "$c_goal" ]; then
   c_open=$(gh issue list -R "$GH_REPO" --state open --label "${CAMPAIGN_LABEL:-campaign}" --json number --jq length 2>/dev/null || echo 0)
-  c_closed=$(gh issue list -R "$GH_REPO" --state closed --label "${CAMPAIGN_LABEL:-campaign}" --limit 200 --json number --jq length 2>/dev/null || echo 0)
+  # done counts only THIS campaign's issues: filed after its start timestamp
+  c_started=$(cat "$CDIR/started" 2>/dev/null || echo 0)
+  if [ "${c_started:-0}" -gt 0 ]; then
+    c_since=$(date -u -d "@$c_started" +%Y-%m-%dT%H:%M:%SZ)
+    c_closed=$(gh issue list -R "$GH_REPO" --state closed --limit 200 \
+      --search "label:${CAMPAIGN_LABEL:-campaign} created:>=$c_since" \
+      --json number --jq length 2>/dev/null || echo 0)
+  else
+    c_closed=$(gh issue list -R "$GH_REPO" --state closed --label "${CAMPAIGN_LABEL:-campaign}" --limit 200 --json number --jq length 2>/dev/null || echo 0)
+  fi
 fi
 campaign=$(jq -n --arg goal "$c_goal" --arg status "$c_status" --arg assess "$c_assess" \
   --argjson open "${c_open:-0}" --argjson closed "${c_closed:-0}" \

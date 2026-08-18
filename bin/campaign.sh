@@ -19,6 +19,15 @@ case "${1:-status}" in
     fi
     printf '%s\n' "$2" >"$CDIR/goal.md"
     echo active >"$CDIR/status"
+    date +%s >"$CDIR/started"
+    # each campaign starts from 0: return the previous campaign's leftover open
+    # issues to the normal queue so they neither count as this campaign's gaps
+    # nor outrank its issues in lane priority
+    for n in $(gh issue list -R "$GH_REPO" --state open --label "${CAMPAIGN_LABEL:-campaign}" \
+        --limit 100 --json number --jq '.[].number' 2>/dev/null); do
+      gh issue edit "$n" -R "$GH_REPO" --remove-label "${CAMPAIGN_LABEL:-campaign}" >/dev/null 2>&1 \
+        && log "campaign set: returned leftover issue #$n to the normal queue"
+    done
     rm -f "$CDIR/achieved" "$CDIR/last-assessment.md"
     log "campaign set: $2"
     ;;
