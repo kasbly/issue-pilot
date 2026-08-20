@@ -172,7 +172,9 @@ async function refresh() {
       <div class="big">${promo.waiting} <span style="font-size:14px;color:var(--dim)">/ ${promo.threshold} commits</span></div>
       <div class="bar"><div class="fill" style="width:${pctToGo}%; background:${promo.active ? "var(--ok)" : "var(--accent)"}"></div></div>
       <div class="drift">${state}</div>
-      <div class="row" style="margin-top:6px"><span>${last}</span></div>
+      <div class="row" style="margin-top:6px"><span>${last}</span>
+        ${promo.active ? "" : `<button onclick="if(confirm('Promote NOW? This merges dev → staging → main and deploys PRODUCTION, ignoring the ${promo.threshold}-commit threshold.')) api({action:'promote_now'}, 'promotion launched — watch this card')">Promote now</button>`}
+      </div>
     </div>`;
   })();
 

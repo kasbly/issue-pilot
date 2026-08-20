@@ -67,7 +67,7 @@ def campaign(*args):
     ).returncode == 0
 
 
-def kick(script, logfile=None):
+def kick(script, logfile=None, args=()):
     # logfile: append the script's output to state/<logfile> so panel-triggered
     # runs stay auditable (timer-triggered runs log to the journal instead)
     out = subprocess.DEVNULL
@@ -75,7 +75,7 @@ def kick(script, logfile=None):
         os.makedirs(STATE, exist_ok=True)
         out = open(os.path.join(STATE, logfile), "a")
     subprocess.Popen(
-        ["bash", os.path.join(PKG, "bin", script)],
+        ["bash", os.path.join(PKG, "bin", script), *args],
         stdout=out, stderr=subprocess.STDOUT if logfile else subprocess.DEVNULL,
     )
 
@@ -164,6 +164,13 @@ class Handler(SimpleHTTPRequestHandler):
                     kick("refill.sh", logfile="refill.log")
                 refresh_status()
                 return self._reply(200, {"ok": True, "next": name})
+            if action == "promote_now":
+                # manual production promotion: bypasses the commit threshold and
+                # the enabled gate (promote.sh --now); its flock makes a click
+                # during a running promotion a safe no-op
+                kick("promote.sh", logfile="promote-manual.log", args=("--now",))
+                refresh_status()
+                return self._reply(200, {"ok": True})
             if action == "campaign_set":
                 goal = req.get("goal", "").strip()
                 if not 10 <= len(goal) <= 2000:
