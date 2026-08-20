@@ -27,13 +27,18 @@ for a in "${ACCTS[@]}"; do
     fi
   else
     CODEX_NAME=$name # fallback attribution for codex procs without LANE_NAME
-    # newest codex session file's last rate_limits snapshot (stale between runs)
-    # || true: with many session files, head's early exit SIGPIPEs ls under pipefail
-    f=$(ls -t "$path"/*/*/*/*.jsonl 2>/dev/null | head -1 || true)
-    if [ -n "$f" ]; then
-      snap=$(grep -o '"rate_limits":{[^}]*}[^}]*}[^}]*}' "$f" | tail -1)
-      used=$(grep -o '"used_percent":[0-9.]*' <<<"$snap" | head -1 | cut -d: -f2)
-      resets=$(grep -o '"resets_at":[0-9]*' <<<"$snap" | head -1 | cut -d: -f2)
+    # newest codex session file WITH a rate_limits snapshot — a busy lane creates
+    # fresh session files faster than snapshots land in them, so the newest file
+    # is often still empty; an unguarded grep here once killed status.sh for an
+    # hour under set -e. || true everywhere: SIGPIPE + no-match are both benign.
+    snap=""
+    for f in $(ls -t "$path"/*/*/*/*.jsonl 2>/dev/null | head -20 || true); do
+      snap=$(grep -o '"rate_limits":{[^}]*}[^}]*}[^}]*}' "$f" 2>/dev/null | tail -1 || true)
+      [ -n "$snap" ] && break
+    done
+    if [ -n "$snap" ]; then
+      used=$(grep -o '"used_percent":[0-9.]*' <<<"$snap" | head -1 | cut -d: -f2 || true)
+      resets=$(grep -o '"resets_at":[0-9]*' <<<"$snap" | head -1 | cut -d: -f2 || true)
       stale=$((now - $(stat -c %Y "$f")))
     fi
   fi
