@@ -57,6 +57,28 @@ promotion_done() {
 # (ORCH_MAX_USED still protects nearly-spent ones).
 export ORCH_MAX_DRIFT="${PROMOTE_MAX_DRIFT:-50}"
 
+# Between rounds, wait for a STATE CHANGE, not a fixed nap: relaunching an
+# opus/max session while CI is still running burns most of it on re-orienting
+# just to conclude "still waiting", and napping after CI already concluded
+# wastes wall-clock. Poll cheaply until every open promotion PR's checks have
+# concluded (or the promotion completed), capped at PROMOTE_ROUND_WAIT_MAX.
+promo_ci_pending() {
+  gh pr list -R "$GH_REPO" --state open --json headRefName,statusCheckRollup --jq \
+    "[.[] | select((.headRefName | startswith(\"promotion/\")) or (.headRefName | startswith(\"promote/\"))
+       or .headRefName == \"${BASE_BRANCH:-main}\" or .headRefName == \"$staging\")
+      | .statusCheckRollup[]? | select(.status != \"COMPLETED\")] | length" 2>/dev/null || echo 0
+}
+wait_for_round() {
+  local waited=0 cap="${PROMOTE_ROUND_WAIT_MAX:-2700}" step=120 p
+  while [ "$waited" -lt "$cap" ]; do
+    sleep "$step"; waited=$((waited + step))
+    promotion_done && return 0
+    p=$(promo_ci_pending)
+    [ "${p:-0}" -eq 0 ] && { log "round wait: promotion CI concluded after ${waited}s — relaunching"; return 0; }
+  done
+  log "round wait: cap reached (${cap}s) with CI still pending — relaunching anyway"
+}
+
 outcome="FAILED"
 rounds="${PROMOTE_MAX_ROUNDS:-8}"
 for round in $(seq 1 "$rounds"); do
@@ -72,8 +94,9 @@ for round in $(seq 1 "$rounds"); do
     bash -c "$PROMOTE_CMD" >>"$STATE_DIR/promotion.log" 2>&1 \
     || log "round $round: agent exited non-zero"
   if promotion_done; then outcome="succeeded"; break; fi
-  log "round $round: promotion not verified complete — waiting $(( ${PROMOTE_ROUND_WAIT:-600} / 60 ))m for CI, then relaunching"
-  sleep "${PROMOTE_ROUND_WAIT:-600}"
+  log "round $round: promotion not verified complete — waiting for promotion CI to conclude (cap $(( ${PROMOTE_ROUND_WAIT_MAX:-2700} / 60 ))m)"
+  wait_for_round
+  if promotion_done; then outcome="succeeded"; break; fi
 done
 
 # optional deterministic runtime check (endpoint probes etc.) after a verified merge
