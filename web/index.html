@@ -154,6 +154,21 @@ async function refresh() {
   document.getElementById("refill").textContent =
     lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "") + scanModel;
 
+  // release note for non-technical users (announce.sh): posted after each verified
+  // release; Preview runs the model without posting, Post sends the pending range
+  const announceRow = a => {
+    if (!a || !a.enabled) return "";
+    const last = a.last
+      ? `release note: ${esc(a.last.outcome)} ${fmtDur(now - a.last.ts)} ago (${a.last.commits} changes)`
+      : "release note: nothing posted yet";
+    const pend = a.pending ? ` · <span class="warn">pending — retry on next hourly tick</span>` : "";
+    const prev = a.preview
+      ? `<details style="margin-top:4px"><summary class="dim" style="cursor:pointer;font-size:12px">last generated note · ${fmtDur(now - a.preview.ts)} ago</summary><div class="quote" dir="auto">${esc(a.preview.text)}</div></details>`
+      : "";
+    return `<div class="row" style="margin-top:6px"><span>${last}${pend}</span>
+        <span><button onclick="api({action:'announce_preview'}, 'generating preview — appears below in ~1 min')">Preview note</button>
+        <button onclick="if(confirm('Post the release note for everything shipped since the last one? This sends a message to your users.')) api({action:'announce_now'}, 'posting — watch this row')">Post note</button></span></div>${prev}`;
+  };
   const promo = s.promotion;
   document.getElementById("release").innerHTML = !promo ? "" : (() => {
     const pctToGo = Math.min(100, 100 * promo.waiting / Math.max(promo.threshold, 1));
@@ -175,6 +190,7 @@ async function refresh() {
       <div class="row" style="margin-top:6px"><span>${last}</span>
         ${promo.active ? "" : `<button onclick="if(confirm('Promote NOW? This merges dev → staging → main and deploys PRODUCTION, ignoring the ${promo.threshold}-commit threshold.')) api({action:'promote_now'}, 'promotion launched — watch this card')">Promote now</button>`}
       </div>
+      ${announceRow(s.announce)}
     </div>`;
   })();
 

@@ -9,6 +9,7 @@ Actions (POST /api/action, JSON body {"action": ..., ...}):
   scanner_run_next {name}   make the next refill run this scanner once
   scanner_run_now {name}    launch refill immediately for this scanner, bypassing
                             the queue threshold and the Claude pace gate (one run)
+  announce_preview / announce_now   generate the release note (dry run) / post it
   campaign_set     {goal}   start a new campaign
   campaign_pause / campaign_resume / campaign_done
 """
@@ -170,6 +171,12 @@ class Handler(SimpleHTTPRequestHandler):
                 # during a running promotion a safe no-op
                 kick("promote.sh", logfile="promote-manual.log", args=("--now",))
                 refresh_status()
+                return self._reply(200, {"ok": True})
+            if action in ("announce_preview", "announce_now"):
+                # release note for non-technical users: preview generates without
+                # posting; now posts the pending range (announce.sh is flock-guarded)
+                args = ("--dry-run",) if action == "announce_preview" else ()
+                kick("announce.sh", logfile="announce-manual.log", args=args)
                 return self._reply(200, {"ok": True})
             if action == "campaign_set":
                 goal = req.get("goal", "").strip()

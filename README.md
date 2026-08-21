@@ -154,6 +154,16 @@ threshold, live PROMOTING state, and the last release outcome. Manual mode: leav
 for your first release or two. If you can, reserve CI runners for promotion jobs
 (route on base = staging/main) so releases never queue behind the worker lanes.
 
+**Release notes for your users (optional).** With `ANNOUNCE_ENABLED=true`, every
+verified release also produces a short plain-language note — the commits that
+reached production since the last note, summarized by a model with *your* prompt
+([examples/announce.md](examples/announce.md), any language, any audience) — and
+posts it with `ANNOUNCE_POST_CMD` (Telegram example in the conf). `SKIP` from the
+model means "internal-only, say nothing". `issue-pilot announce --dry-run` and the
+Release card's **Preview note** button show the note without posting; **Post note**
+sends whatever is pending. It uses your paced Claude accounts (Codex fallback), not
+an API key.
+
 ## Status page
 
 `issue-pilot-web.service` serves `web/` (bind it to a private/VPN interface — it

@@ -190,6 +190,26 @@ PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort
 # Max seconds between promotion rounds waiting for the candidate CI to
 # conclude (polled every 2 min; relaunches the moment checks finish):
 #PROMOTE_ROUND_WAIT_MAX=2700
+# --- Announce (optional): a release note for your NON-technical users ---
+# After each verified release, announce.sh collects the feat/fix/perf commits that
+# reached PROD_BRANCH since the last announcement, asks a model for a short
+# plain-language note (your prompt, your language — see examples/announce.md,
+# which sees $ANNOUNCE_COMMITS, $ANNOUNCE_CHANGELOG, $ANNOUNCE_COUNT,
+# $ANNOUNCE_RANGE) and posts it with ANNOUNCE_POST_CMD ($MSG). A model reply of
+# exactly SKIP posts nothing (internal-only release). Deferred/failed runs retry on
+# the hourly promote tick; the panel's Release card has Preview / Post buttons.
+ANNOUNCE_ENABLED=false
+ANNOUNCE_CMD='claude -p "$(envsubst < examples/announce.md)" --model sonnet --dangerously-skip-permissions'
+# Codex fallback when no Claude account is behind its pace line (writes to $ANNOUNCE_OUT
+# because codex exec's stdout is noisy):
+#ANNOUNCE_FALLBACK_CMD='codex exec -m gpt-5.6-terra -s read-only -o "$ANNOUNCE_OUT" "$(envsubst < examples/announce.md)" >/dev/null'
+# Telegram example (forum topic): chat id of the group, message_thread_id of the topic
+#ANNOUNCE_POST_CMD='curl -sS --fail-with-body -X POST "https://api.telegram.org/bot$ANNOUNCE_TG_TOKEN/sendMessage" --data-urlencode "chat_id=$ANNOUNCE_TG_CHAT" --data-urlencode "message_thread_id=$ANNOUNCE_TG_THREAD" --data-urlencode "text=$MSG" --data-urlencode "disable_web_page_preview=true" | jq -e .ok >/dev/null'
+#ANNOUNCE_TG_TOKEN="123456:ABC..."   # bot must be a member of the group
+#ANNOUNCE_TG_CHAT="-1001234567890"
+#ANNOUNCE_TG_THREAD="2"
+#ANNOUNCE_CHANGELOG_FILE=CHANGELOG.md # optional: feed the lines added in the range too
+#ANNOUNCE_COMMIT_FILTER='^(feat|fix|perf)(\(|:|!)'  # grep -E over commit subjects
 # Tip: reserve CI runners for promotion PRs (route jobs whose base is
 # STAGING_BRANCH/PROD_BRANCH, or promote/* heads, to a dedicated runner label) so
 # releases never queue behind the worker lanes' CI.

@@ -22,6 +22,7 @@ Usage: issue-pilot <command> [args]
   pace          recompute lane concurrency once
   status        refresh web/status.json once
   promote       run the release check once (--now forces past the gates)
+  announce      post the release note for commits shipped since the last one (--dry-run previews)
   campaign      set "<goal>" | pause | resume | done | status | tick
   dispatch      run the dispatcher loop in the foreground (systemd runs this)
   version       print the package version
@@ -71,7 +72,7 @@ EOF
     [ "${BASH_VERSINFO[0]}" -ge 4 ] && echo "ok      bash ${BASH_VERSION%%(*}" || echo "note    bash 3.x — dispatch needs bash 4+ (fine on Linux)"
     exit $ok
     ;;
-  refill|pace|status|dispatch|promote|campaign)
+  refill|pace|status|dispatch|promote|announce|campaign)
     exec bash "$PKG_DIR/bin/$cmd.sh" "$@"
     ;;
   version)

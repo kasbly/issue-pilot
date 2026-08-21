@@ -10,6 +10,10 @@ exec 9>"$STATE_DIR/promote.lock"
 flock -n 9 || { log "promotion already running — skipping"; exit 0; }
 
 force=0; [ "${1:-}" = "--now" ] && force=1
+# an announcement deferred for lack of an account (or a failed post) is retried here
+if [ "${ANNOUNCE_ENABLED:-false}" = "true" ] && [ -f "$STATE_DIR/announce-pending" ]; then
+  bash "$PKG_DIR/bin/announce.sh" || true
+fi
 if [ "$force" -eq 0 ]; then
   paused && { log "system paused — promotion skipped"; exit 0; }
   [ "${PROMOTE_ENABLED:-false}" = "true" ] || { log "promotion disabled (PROMOTE_ENABLED=false)"; exit 0; }
@@ -32,6 +36,7 @@ trap 'rm -f "$STATE_DIR/promotion-active"' EXIT
 start=$(date +%s)
 start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 prod="${PROD_BRANCH:-main}"
+prod_before=$(gh api "repos/$GH_REPO/commits/$prod" --jq .sha 2>/dev/null || true)
 
 # An agent session may exit early ("waiting for CI" is not a thing a one-shot
 # session can do). So: run in rounds, and only VERIFIED state counts as done —
@@ -107,5 +112,9 @@ if [ "$outcome" = "succeeded" ] && [ -n "${PROMOTE_VERIFY_CMD:-}" ]; then
 fi
 
 echo "$(date +%s) $outcome" >"$STATE_DIR/promotion-last"
+# release note for non-technical users — only after a fully verified release
+if [ "$outcome" = "succeeded" ] && [ "${ANNOUNCE_ENABLED:-false}" = "true" ]; then
+  ANNOUNCE_FROM="$prod_before" bash "$PKG_DIR/bin/announce.sh" || log "announce failed (details: state/announce.log)"
+fi
 log "promotion $outcome after $(( ($(date +%s) - start) / 60 ))m (details: state/promotion.log)"
 [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: promotion $outcome" bash -c "$NOTIFY_CMD" || true; }

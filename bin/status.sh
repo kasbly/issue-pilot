@@ -134,6 +134,20 @@ promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "$
   '{enabled:($enabled=="true"), waiting:$waiting, threshold:$threshold, active:$active,
     last:(if $last_ts==0 then null else {ts:$last_ts, outcome:$last_outcome} end)}')
 
+# release announcements (announce.sh): last post, pending retry, latest preview text
+read -r al_ts al_outcome al_n 2>/dev/null <"$STATE_DIR/announce-last" || { al_ts=0; al_outcome=""; al_n=0; }
+a_pending=false; [ -f "$STATE_DIR/announce-pending" ] && a_pending=true
+a_prev=""; a_prev_ts=0
+if [ -f "$STATE_DIR/announce-preview.txt" ]; then
+  a_prev=$(head -c 3000 "$STATE_DIR/announce-preview.txt"); a_prev_ts=$(stat -c %Y "$STATE_DIR/announce-preview.txt")
+fi
+announce=$(jq -n --arg enabled "${ANNOUNCE_ENABLED:-false}" --argjson pending "$a_pending" \
+  --argjson last_ts "${al_ts:-0}" --arg last_outcome "${al_outcome:-}" --argjson last_n "${al_n:-0}" \
+  --argjson prev_ts "$a_prev_ts" --arg prev "$a_prev" \
+  '{enabled:($enabled=="true"), pending:$pending,
+    last:(if $last_ts==0 then null else {ts:$last_ts, outcome:$last_outcome, commits:$last_n} end),
+    preview:(if $prev_ts==0 then null else {ts:$prev_ts, text:$prev} end)}')
+
 # scanners: union of rotation entries, working-dir overrides, the SCANNED REPO's own
 # scanners/ directory, and the built-in library; enabled = in rotation
 scan_rows=()
@@ -238,9 +252,10 @@ join_json "${acc_rows[@]}" | jq \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
+  --argjson announce "$announce" \
   --argjson scanners "$(join_json "${scan_rows[@]}")" --argjson campaign "$campaign" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, paused:$paused, accounts:., lanes:$lanes, workers:$workers,
     resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
-    scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
+    announce:$announce, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json
