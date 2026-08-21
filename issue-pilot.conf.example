@@ -187,6 +187,9 @@ PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort
 # Optional deterministic post-release check; non-zero exit marks the release
 # "merged, runtime verification FAILED" instead of succeeded:
 #PROMOTE_VERIFY_CMD='curl -sf https://api.example.com/healthz >/dev/null && curl -sfL https://example.com >/dev/null'
+# Max seconds between promotion rounds waiting for the candidate CI to
+# conclude (polled every 2 min; relaunches the moment checks finish):
+#PROMOTE_ROUND_WAIT_MAX=2700
 # Tip: reserve CI runners for promotion PRs (route jobs whose base is
 # STAGING_BRANCH/PROD_BRANCH, or promote/* heads, to a dedicated runner label) so
 # releases never queue behind the worker lanes' CI.
