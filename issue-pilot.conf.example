@@ -195,7 +195,7 @@ PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort
 # reached PROD_BRANCH since the last announcement, asks a model for a short
 # plain-language note (your prompt, your language — see examples/announce.md,
 # which sees $ANNOUNCE_COMMITS, $ANNOUNCE_CHANGELOG, $ANNOUNCE_COUNT,
-# $ANNOUNCE_RANGE) and posts it with ANNOUNCE_POST_CMD ($MSG). A model reply of
+# $ANNOUNCE_RANGE, $ANNOUNCE_VERSION = newest ANNOUNCE_TAG_PREFIX* tag on prod) and posts it with ANNOUNCE_POST_CMD ($MSG). A model reply of
 # exactly SKIP posts nothing (internal-only release). Deferred/failed runs retry on
 # the hourly promote tick; the panel's Release card has Preview / Post buttons.
 ANNOUNCE_ENABLED=false
@@ -209,6 +209,7 @@ ANNOUNCE_CMD='claude -p "$(envsubst < examples/announce.md)" --model sonnet --da
 #ANNOUNCE_TG_CHAT="-1001234567890"
 #ANNOUNCE_TG_THREAD="2"
 #ANNOUNCE_CHANGELOG_FILE=CHANGELOG.md # optional: feed the lines added in the range too
+#ANNOUNCE_TAG_PREFIX=v                # release tags look like v1.2.3
 #ANNOUNCE_COMMIT_FILTER='^(feat|fix|perf)(\(|:|!)'  # grep -E over commit subjects
 # Tip: reserve CI runners for promotion PRs (route jobs whose base is
 # STAGING_BRANCH/PROD_BRANCH, or promote/* heads, to a dedicated runner label) so

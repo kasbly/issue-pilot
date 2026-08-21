@@ -39,7 +39,16 @@ if [ -n "${ANNOUNCE_CHANGELOG_FILE:-}" ]; then
   cl() { gh api -H "Accept: application/vnd.github.raw" "repos/$GH_REPO/contents/$ANNOUNCE_CHANGELOG_FILE?ref=$1" 2>/dev/null || true; }
   changelog=$(diff <(cl "$from") <(cl "$head") | sed -n 's/^> //p' | head -c 12000 || true)
 fi
-export ANNOUNCE_RANGE="${from:0:9}..${head:0:9}" ANNOUNCE_COUNT="$n" \
+# release version = newest ANNOUNCE_TAG_PREFIX* tag reachable from the prod head (tags
+# are usually cut on the staging merge, so they sit behind head, not on it)
+ver=""
+for t in $(gh api --paginate "repos/$GH_REPO/git/matching-refs/tags/${ANNOUNCE_TAG_PREFIX:-v}" \
+             --jq '.[].ref | ltrimstr("refs/tags/")' 2>/dev/null | sort -rV | head -20); do
+  case "$(gh api "repos/$GH_REPO/compare/$t...$head" --jq .status 2>/dev/null)" in
+    identical|ahead) ver="${t#"${ANNOUNCE_TAG_PREFIX:-v}"}"; break ;;
+  esac
+done
+export ANNOUNCE_RANGE="${from:0:9}..${head:0:9}" ANNOUNCE_COUNT="$n" ANNOUNCE_VERSION="$ver" \
   ANNOUNCE_COMMITS="$commits" ANNOUNCE_CHANGELOG="${changelog:-<none>}"
 
 # model: a paced Claude account, else the Codex fallback, else defer — promote.sh
@@ -76,7 +85,7 @@ fi
 if MSG="$msg" bash -c "${ANNOUNCE_POST_CMD:?ANNOUNCE_POST_CMD is not set}" >>"$STATE_DIR/announce.log" 2>&1; then
   echo "$head" >"$STATE_DIR/announce-last-sha"; rm -f "$STATE_DIR/announce-pending"
   echo "$(date +%s) posted $n" >"$STATE_DIR/announce-last"
-  log "announce: posted ($n commits)"; refresh
+  log "announce: posted ($n commits${ver:+, version $ver})"; refresh
 else
   touch "$STATE_DIR/announce-pending"; log "announce: post FAILED (see state/announce.log) — will retry"; refresh; exit 1
 fi
