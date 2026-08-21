@@ -11,6 +11,8 @@
 cd "$ISSUE_PILOT_HOME"
 
 dry=0; [ "${1:-}" = "--dry-run" ] && dry=1
+# conf vars are plain assignments; the model/post commands run in child shells
+for v in "${!ANNOUNCE_@}"; do export "$v"; done
 prod="${PROD_BRANCH:-main}"
 exec 9>"$STATE_DIR/announce.lock"
 flock -n 9 || { log "announce already running — skipping"; exit 0; }
@@ -66,7 +68,7 @@ fi
 # the command prints the note on stdout, or writes it to $ANNOUNCE_OUT (for tools
 # whose stdout is noisy)
 export ANNOUNCE_OUT="$STATE_DIR/announce-out.txt"; : >"$ANNOUNCE_OUT"
-log "announce: summarizing $n commits ($ANNOUNCE_RANGE)${dry:+, dry run}"
+log "announce: summarizing $n commits ($ANNOUNCE_RANGE)$([ "$dry" -eq 1 ] && echo ', dry run')"
 out=$(bash -c "$run" 2>>"$STATE_DIR/announce.log" || true)
 [ -s "$ANNOUNCE_OUT" ] && out=$(cat "$ANNOUNCE_OUT")
 msg=$(printf '%s\n' "$out" | sed 's/[[:space:]]*$//' \
