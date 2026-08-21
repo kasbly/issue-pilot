@@ -69,7 +69,7 @@ fi
 # whose stdout is noisy)
 export ANNOUNCE_OUT="$STATE_DIR/announce-out.txt"; : >"$ANNOUNCE_OUT"
 log "announce: summarizing $n commits ($ANNOUNCE_RANGE)$([ "$dry" -eq 1 ] && echo ', dry run')"
-out=$(bash -c "$run" 2>>"$STATE_DIR/announce.log" || true)
+out=$(bash -c "$run" </dev/null 2>>"$STATE_DIR/announce.log" || true)  # no stdin: codex exec would wait on it
 [ -s "$ANNOUNCE_OUT" ] && out=$(cat "$ANNOUNCE_OUT")
 msg=$(printf '%s\n' "$out" | sed 's/[[:space:]]*$//' \
   | awk 'NF{p=1} p{l[++c]=$0} END{while(c && l[c]=="") c--; for(i=1;i<=c;i++) print l[i]}')
