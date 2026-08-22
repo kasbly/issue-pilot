@@ -52,7 +52,7 @@ while true; do
         BASE_BRANCH="${BASE_BRANCH:-main}" AUTO_MERGE="${AUTO_MERGE:-false}" \
         MERGE_METHOD="${MERGE_METHOD:---merge}" \
         ISSUE_ORDER="${ISSUE_ORDER:-oldest}" SORT_DIR=$sort_dir \
-        READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL \
+        READY_LABEL=$READY_LABEL CLAIM_LABEL=$CLAIM_LABEL BLOCKED_LABEL="${BLOCKED_LABEL:-status/blocked}" \
         REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
         LANE_NAME="$label" LANE_SLUG="pilot-$id" CAMPAIGN_LABEL="${CAMPAIGN_LABEL:-}" \
         setsid bash -c "$(lane_get "$id" CMD 'echo "lane has no CMD configured" >&2; exit 1')" \

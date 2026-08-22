@@ -29,6 +29,30 @@ if [ "$released" -gt 0 ] && [ -n "${NOTIFY_CMD:-}" ]; then
   MSG="issue-pilot: janitor released $released stale claim(s)" bash -c "$NOTIFY_CMD" || true
 fi
 
+# Claim loops: an issue no worker can finish (needs a maintainer decision, hits the
+# CI guardrail) gets claimed, refused, un-claimed and re-claimed by the next batch —
+# hundreds of comments and zero progress. Park any ready issue with
+# PARK_AFTER_CLAIMS or more "claimed by" comments and no open PR: out of the ready
+# queue, BLOCKED_LABEL on, one comment. Candidates come from one search call.
+park_after="${PARK_AFTER_CLAIMS:-4}"
+blocked="${BLOCKED_LABEL:-status/blocked}"
+parked=0
+for n in $(gh api -X GET search/issues -f q="repo:$GH_REPO is:issue is:open label:\"$READY_LABEL\" comments:>=$park_after" \
+           -f per_page=50 --jq '.items[].number' 2>/dev/null); do
+  grep -q "issue-${n}\$" <<<"$heads" && continue
+  claims=$(gh issue view "$n" -R "$GH_REPO" --json comments \
+    --jq '[.comments[] | select(.body | startswith("claimed by"))] | length' 2>/dev/null || echo 0)
+  [ "${claims:-0}" -ge "$park_after" ] || continue
+  if gh issue edit "$n" -R "$GH_REPO" --remove-label "$READY_LABEL,$CLAIM_LABEL" --add-label "$blocked" >/dev/null 2>&1; then
+    gh issue comment "$n" -R "$GH_REPO" --body "Blocked: parked by issue-pilot — claimed $claims times without a PR, so workers cannot finish it as written. A maintainer decision is needed; re-add \`$READY_LABEL\` (and remove \`$blocked\`) to re-queue." >/dev/null 2>&1 || true
+    log "janitor: parked #$n ($claims claims, no PR) -> $blocked"
+    parked=$((parked + 1))
+  fi
+done
+if [ "$parked" -gt 0 ] && [ -n "${NOTIFY_CMD:-}" ]; then
+  MSG="issue-pilot: janitor parked $parked looping issue(s) as $blocked" bash -c "$NOTIFY_CMD" || true
+fi
+
 # Leaked worktrees: prompts tell workers to clean up, but killed batches can't.
 # Remove pilot/promote worktrees untouched for JANITOR_WORKTREE_HOURS (default 48)
 # with no open files, then prune the clone's worktree registry.

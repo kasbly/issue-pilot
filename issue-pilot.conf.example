@@ -10,6 +10,8 @@ CLAIM_LABEL="in-pilot"               # added when a lane picks an issue up
 # --- Refill (issue generation) ---
 REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
 JANITOR_STALE_HOURS=6                # hourly janitor releases claims older than this with no PR
+BLOCKED_LABEL="status/blocked"       # parked issues: workers can't finish them, a human must decide
+PARK_AFTER_CLAIMS=4                  # janitor parks a ready issue claimed this often with no PR
 JANITOR_WORKTREE_HOURS=48            # ...and deletes pilot/promote worktrees untouched this long
 # Command that generates new issues (your scanner pipeline). Runs from ISSUE_PILOT_HOME.
 # Issue quality is the foundation of the whole loop — use a strong model here.
@@ -97,7 +99,7 @@ BATCH_SIZE=25                        # issues per batch session (small batches s
 #                 off    = parked (config-level retire; day-to-day on/off is the
 #                          panel's lane toggle, which pauses without touching MODE)
 #   CMD           batch command; receives CONCURRENCY, BATCH_SIZE, GH_REPO, BASE_BRANCH,
-#                 AUTO_MERGE, ISSUE_ORDER, SORT_DIR, READY_LABEL, CLAIM_LABEL, REPO_DIR,
+#                 AUTO_MERGE, ISSUE_ORDER, SORT_DIR, READY_LABEL, CLAIM_LABEL, BLOCKED_LABEL, REPO_DIR,
 #                 LANE_NAME, LANE_SLUG in its environment
 #   CONCURRENCY   subagents per batch (always mode; window mode computes its own)
 #   CREDENTIALS   (window) that account's .claude/.credentials.json for usage reading.

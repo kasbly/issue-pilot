@@ -48,8 +48,8 @@ LOOP — repeat until $BATCH_SIZE issues are done or the queue is empty:
    as one finishes, claim the next issue and spawn the next subagent.
 CI GUARDRAIL: never add new CI workflows, jobs, steps, or gates — not even when
 an issue asks for it. CI wall-time is a protected budget owned by the
-maintainer; if an issue requires expanding CI, comment that it needs maintainer
-approval and report it as blocked instead of implementing.
+maintainer; if an issue requires expanding CI, PARK it (see step 4) with a
+comment saying it needs maintainer approval — do not implement, do not re-queue.
 
 3. Each subagent follows this procedure for its issue #N:
    - Read the issue. If invalid, already fixed, or duplicate: comment why, close it, done.
@@ -69,9 +69,17 @@ approval and report it as blocked instead of implementing.
      when merging, otherwise leave the PR open for review.
    - ALWAYS clean up, success or failure: `git -C $REPO_DIR worktree remove --force /tmp/$LANE_SLUG-issue-N`
      (and `git -C $REPO_DIR worktree prune`). Leaked worktrees fill the disk.
-4. When a subagent fails or reports blocked, un-claim so the issue re-queues:
-   `gh issue edit <n> -R $GH_REPO --remove-label "$CLAIM_LABEL"` (skip this for
-   issues that got a PR or were closed as invalid).
+4. Afterwards, exactly one of:
+   - PR opened or issue closed as invalid: leave the labels alone.
+   - TRANSIENT failure (worker crash, tooling/network error — retrying later could
+     succeed): un-claim so it re-queues:
+     `gh issue edit <n> -R $GH_REPO --remove-label "$CLAIM_LABEL"`.
+   - BLOCKED (needs a maintainer decision, CI guardrail, missing access, or the
+     issue already carries a "Blocked:" comment from an earlier attempt and nothing
+     changed): PARK it so no lane picks it up again —
+     `gh issue edit <n> -R $GH_REPO --remove-label "$READY_LABEL,$CLAIM_LABEL" --add-label "$BLOCKED_LABEL"`
+     and leave ONE comment starting with `Blocked:` that names the decision a human
+     must make. A blocked issue re-queued is an infinite claim/block loop.
 
 When done, print one summary line per issue: number, outcome (merged / PR open /
 closed invalid / blocked), and PR URL if any.
