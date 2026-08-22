@@ -85,15 +85,17 @@ all_prs=$(gh pr list -R "$GH_REPO" --author "@me" --state all --limit 100 --json
 # queue + refill
 ready_count=$(ready_issues | wc -l | tr -d ' ')
 open_total=$(gh api "search/issues?q=repo:$GH_REPO+is:issue+is:open&per_page=1" --jq '.total_count' 2>/dev/null || echo 0)
+# parked by workers/janitor: a human decision is needed before they can re-queue
+blocked_total=$(gh api -X GET search/issues -f q="repo:$GH_REPO is:issue is:open label:\"${BLOCKED_LABEL:-status/blocked}\"" -f per_page=1 --jq '.total_count' 2>/dev/null || echo 0)
 next_refill=0
 nr=$(systemctl show issue-pilot-refill.timer -p NextElapseUSecRealtime --value 2>/dev/null || true)
 [ -n "$nr" ] && [ "$nr" != "n/a" ] && next_refill=$(date -d "$nr" +%s 2>/dev/null || echo 0)
 read -r rl_ts rl_action rl_detail 2>/dev/null <"$STATE_DIR/refill-last" || { rl_ts=0; rl_action=""; rl_detail=""; }
 refill=$(jq -n --argjson ready "$ready_count" --argjson threshold "${REFILL_THRESHOLD:-0}" \
-  --argjson open "$open_total" --argjson next "$next_refill" \
+  --argjson open "$open_total" --argjson blocked "$blocked_total" --argjson next "$next_refill" \
   --arg model "${SCANNER_MODEL:-}" --arg effort "${SCANNER_EFFORT:-}" \
   --argjson last_ts "${rl_ts:-0}" --arg last_action "${rl_action:-}" --arg last_detail "${rl_detail:-}" \
-  '{ready:$ready, threshold:$threshold, open_issues:$open, next_run:(if $next==0 then null else $next end),
+  '{ready:$ready, threshold:$threshold, open_issues:$open, blocked_issues:$blocked, next_run:(if $next==0 then null else $next end),
     scanner_model:(if $model=="" then null else $model end), scanner_effort:(if $effort=="" then null else $effort end),
     last:(if $last_ts==0 then null else {ts:$last_ts, action:$last_action, detail:$last_detail} end)}')
 

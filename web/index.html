@@ -145,6 +145,7 @@ async function refresh() {
   document.getElementById("queue").innerHTML =
     tile("ready issues", `${r.ready ?? "–"}`, (r.ready != null && r.ready < r.threshold) ? "bad" : "") +
     tile("open issues", r.open_issues ?? "–") +
+    tile(`blocked issues <span class="dim">· need your decision</span>`, r.blocked_issues ?? "–", (r.blocked_issues > 0) ? "warn" : "") +
     tile("PRs merged today", t.merged_today ?? "–", "ok") +
     tile("PRs merged yesterday", t.merged_yesterday ?? "–");
   const lastR = r.last
