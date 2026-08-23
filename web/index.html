@@ -151,7 +151,8 @@ async function refresh() {
   const lastR = r.last
     ? `last refill check ${fmtDur(now - r.last.ts)} ago — ${r.last.action === "ran" ? "scanner RAN" : r.last.action === "deferred" ? "DEFERRED — no Claude account behind its pace line" : "skipped"} (${esc(r.last.detail)}, threshold ${r.threshold})`
     : `no refill check recorded yet (threshold ${r.threshold ?? "?"})`;
-  const scanModel = r.scanner_model ? ` · scanner: ${r.scanner_model}${r.scanner_effort ? " (" + r.scanner_effort + ")" : ""}` : "";
+  const scanModel = (r.scanner_model ? ` · scanner: ${r.scanner_model}${r.scanner_effort ? " (" + r.scanner_effort + ")" : ""}` : "")
+    + (r.scanner_fallback ? ` · fallback: ${esc(r.scanner_fallback)}` : "");
   document.getElementById("refill").textContent =
     lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "") + scanModel;
 

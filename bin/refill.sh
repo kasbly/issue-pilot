@@ -137,11 +137,10 @@ export SCAN_LEDGER="$(tail -n 120 "$LEDGER_FILE" 2>/dev/null || echo '(no previo
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
 export ERROR_LOG_CMD="${ERROR_LOG_CMD:-}" CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}"
 RUN_CMD="$SCANNER_CMD"
+run_via="claude $SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
 if ! pick_claude_account; then
   # Codex fallback: while every Claude account rests at its pace line, dims listed
-  # in SCANNER_FALLBACK_DIMS may scan on a Codex account instead. Keep this list to
-  # evidence-gated scanners (ci-health, deps, prod-errors, ui-quality) — a wrong
-  # issue from a judgment-heavy scanner costs a lane hours downstream.
+  # in SCANNER_FALLBACK_DIMS ("*" = all) may scan on a Codex account instead.
   # If the dim whose turn it is isn't fallback-listed, walk the rest of the ring —
   # a Claude-rest hour shouldn't idle while an evidence-gated dim is due. The
   # deferred dim keeps its turn: the pointer advances to whichever dim runs.
@@ -163,6 +162,7 @@ if ! pick_claude_account; then
     export SCANNER_RUN_MODEL="${SCANNER_FALLBACK_MODEL:-$SCANNER_RUN_MODEL}"
     export SCANNER_RUN_EFFORT="${SCANNER_FALLBACK_EFFORT:-$SCANNER_RUN_EFFORT}"
     RUN_CMD="$SCANNER_FALLBACK_CMD"
+    run_via="codex $SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
     log "scanner fallback: running $SCANNER_DIMENSION on Codex account '$fb_name' ($SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT)"
   else
     # a deferred run must not eat a "Run next" click — restore the override
@@ -189,5 +189,5 @@ if [ -n "${SCANNER_DIMENSION:-}" ]; then
 fi
 bash "$PKG_DIR/bin/label-guard.sh" || true
 after=$(ready_issues | wc -l | tr -d ' ')
-echo "$(date +%s) ran queue=$after" >"$STATE_DIR/refill-last"
+echo "$(date +%s) ran queue=$after via $run_via" >"$STATE_DIR/refill-last"
 log "scanner finished; ready issues now: $after"
