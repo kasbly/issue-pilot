@@ -149,7 +149,7 @@ if ! pick_claude_account; then
   if [ -n "${SCANNER_FALLBACK_CMD:-}" ] && [ -n "${SCANNER_DIMENSION:-}" ]; then
     for d in $SCANNER_DIMENSION ${ring:-}; do
       # "*" = every dimension may fall back
-      case " ${SCANNER_FALLBACK_DIMS:-} " in "* * *"|*" $d "*) ;; *) continue ;; esac
+      case " ${SCANNER_FALLBACK_DIMS:-} " in " * "|*" $d "*) ;; *) continue ;; esac
       scanner_eligible "$d" || continue
       fbdim=$d; break
     done
