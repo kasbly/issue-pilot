@@ -138,7 +138,15 @@ export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_D
 export ERROR_LOG_CMD="${ERROR_LOG_CMD:-}" CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}"
 RUN_CMD="$SCANNER_CMD"
 run_via="claude $SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
-if ! pick_claude_account; then
+# models billed outside the Claude subscriptions (SCANNER_PACE_EXEMPT_MODELS,
+# space-separated globs, e.g. "grok-*") skip the Claude pace gate entirely
+pace_exempt=""
+for pat in ${SCANNER_PACE_EXEMPT_MODELS:-}; do
+  case "$SCANNER_RUN_MODEL" in $pat) pace_exempt=1 ;; esac
+done
+if [ -n "$pace_exempt" ]; then
+  run_via="$SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
+elif ! pick_claude_account; then
   # Codex fallback: while every Claude account rests at its pace line, dims listed
   # in SCANNER_FALLBACK_DIMS ("*" = all) may scan on a Codex account instead.
   # If the dim whose turn it is isn't fallback-listed, walk the rest of the ring —

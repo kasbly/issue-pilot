@@ -50,6 +50,12 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 # Accounts: "name:/path/to/codex-home ..."; the least-used one below
 # SCANNER_FALLBACK_MAX_USED (default 90) runs the scan.
 #CODEX_ACCOUNTS="codex:$HOME/.codex work:$HOME/.codex-work"
+# Models billed outside the Claude subscriptions skip the Claude pace gate
+# (space-separated globs matched against the dim'"'"'s resolved model):
+#SCANNER_PACE_EXEMPT_MODELS="grok-*"
+# Set to false when CAMPAIGN_CMD / PROMOTE_CMD bill another provider (grok, codex):
+#CAMPAIGN_USES_CLAUDE=true
+#PROMOTE_USES_CLAUDE=true
 #SCANNER_FALLBACK_DIMS="*"                # dims allowed to fall back ("*" = all, or a space list)
 #SCANNER_FALLBACK_CMD='codex exec -m "$SCANNER_RUN_MODEL" -c model_reasoning_effort="$SCANNER_RUN_EFFORT" --dangerously-bypass-approvals-and-sandbox "$(envsubst < examples/scanner.md)"'
 #SCANNER_FALLBACK_MODEL="gpt-5.6-terra"

@@ -88,7 +88,8 @@ outcome="FAILED"
 rounds="${PROMOTE_MAX_ROUNDS:-8}"
 for round in $(seq 1 "$rounds"); do
   log "promotion round $round/$rounds"
-  if ! pick_claude_account; then
+  # PROMOTE_USES_CLAUDE=false when PROMOTE_CMD bills another provider (grok, codex)
+  if [ "${PROMOTE_USES_CLAUDE:-true}" = "true" ] && ! pick_claude_account; then
     log "round $round deferred — waiting for an account to fall behind its line"
     sleep "${PROMOTE_ROUND_WAIT:-600}"
     continue

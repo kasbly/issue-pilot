@@ -64,7 +64,10 @@ case "${1:-status}" in
       CAMPAIGN_BROWSER_URL="${CAMPAIGN_BROWSER_URL:-}" \
       CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}" \
       CAMPAIGN_STATE_DIR="$CDIR"
-    pick_claude_account || { log "campaign tick deferred — next tick retries"; exit 0; }
+    # CAMPAIGN_USES_CLAUDE=false when CAMPAIGN_CMD bills another provider (grok, codex)
+    if [ "${CAMPAIGN_USES_CLAUDE:-true}" = "true" ]; then
+      pick_claude_account || { log "campaign tick deferred — next tick retries"; exit 0; }
+    fi
     bash -c "$CAMPAIGN_CMD" >>"$CDIR/campaign.log" 2>&1 || log "campaign agent exited non-zero"
 
     if [ -f "$CDIR/achieved" ]; then
