@@ -29,7 +29,7 @@ for _ in $(seq 1 20); do
   [ -n "$panel" ] && break; sleep 1
 done
 pct=$(grep -o -E "[0-9]+%" <<<"$panel" | head -1 | tr -d '%' || true)
-reset=$(grep -o -E "Resets: [^|]*" <<<"$panel" | head -1 | sed 's/Resets: //; s/[[:space:]]*$//; s/,//' || true)
+reset=$(grep -o -E "Resets: [A-Za-z]+ [0-9]{1,2},? [0-9]{1,2}:[0-9]{2}" <<<"$panel" | head -1 | sed 's/Resets: //; s/,//' || true)
 [ -n "${pct:-}" ] && [ -n "${reset:-}" ] || { echo "usage-grok: usage panel not found" >&2; exit 1; }
 # "September 2 13:17" has no year: take this year, else it means next year
 now=$(date +%s)
