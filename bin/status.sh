@@ -17,12 +17,19 @@ for a in "${ACCTS[@]}"; do
   IFS='|' read -r name kind path <<<"$a"
   used="" resets=0 stale=0 h5=""
   if [ "$kind" = "grok" ]; then
-    # Grok Build exposes no usage/limits API (checked v1.0.5: no usage command, no
-    # rate_limits in ~/.grok) — show the account as connected instead of "no data"
+    # Grok Build has no public usage API; usage-grok.sh scrapes the TUI's /usage
+    # panel (weekly limit % + reset). Fall back to a plain connected marker.
     auth=false; [ -s "$path" ] && auth=true
-    acc_rows+=("$(jq -n --arg name "$name" --argjson auth "$auth" \
-      '{name:$name, kind:"grok", used_pct:null, resets_at:null, five_hour_pct:null,
-        stale_secs:0, no_usage_api:true, connected:$auth}')")
+    g_used=""; g_resets=0
+    if read -r g_pct g_secs < <(bash "$PKG_DIR/bin/usage-grok.sh" 2>/dev/null) && [ -n "${g_secs:-}" ]; then
+      g_used=$g_pct; g_resets=$(( now + g_secs ))
+    fi
+    acc_rows+=("$(jq -n --arg name "$name" --argjson auth "$auth" --arg used "$g_used" --argjson resets "$g_resets" \
+      '{name:$name, kind:"grok",
+        used_pct:(if $used=="" then null else ($used|tonumber) end),
+        resets_at:(if $resets==0 then null else $resets end),
+        five_hour_pct:null, stale_secs:0,
+        no_usage_api:(if $used=="" then true else false end), connected:$auth}')")
     continue
   fi
   if [ "$kind" = "claude" ]; then
