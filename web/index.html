@@ -119,7 +119,8 @@ async function refresh() {
     const expected = secs != null ? Math.max(0, Math.min(100, 100 * (1 - secs/WEEK))) : null;
     const drift = (a.used_pct != null && expected != null) ? expected - a.used_pct : null;
     const cls = drift == null ? "" : drift > 10 ? "warn" : drift < -10 ? "bad" : "ok";
-    const driftTxt = drift == null ? "no data" :
+    const driftTxt = a.no_usage_api ? (a.connected ? "connected — provider has no usage API" : "not logged in") :
+      drift == null ? "no data" :
       Math.abs(drift) < 1 ? "on pace" :
       drift > 0 ? `${drift.toFixed(0)}% behind pace${drift > 10 ? " — quota will be left over" : ""}` :
       `${(-drift).toFixed(0)}% ahead of pace`;
@@ -128,7 +129,7 @@ async function refresh() {
       ? ` · 5h window ${a.five_hour_pct.toFixed(0)}%${a.five_hour_pct >= 85 ? " ⚠" : ""}` : "";
     return `<div class="card">
       <span class="name">${esc(a.name)}</span><span class="kind">${esc(a.kind)}</span>
-      <div class="big">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : "–"}</div>
+      <div class="big">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : a.no_usage_api ? (a.connected ? "✓" : "✗") : "–"}</div>
       <div class="bar">
         <div class="fill" style="width:${a.used_pct ?? 0}%; background:${drift != null && drift > 10 ? "var(--warn)" : "var(--accent)"}"></div>
         ${expected != null ? `<div class="pace" style="left:${expected}%" title="ideal pace ${expected.toFixed(0)}%"></div>` : ""}

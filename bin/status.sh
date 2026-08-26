@@ -16,6 +16,15 @@ IFS=';' read -ra ACCTS <<<"${STATUS_ACCOUNTS:-}"
 for a in "${ACCTS[@]}"; do
   IFS='|' read -r name kind path <<<"$a"
   used="" resets=0 stale=0 h5=""
+  if [ "$kind" = "grok" ]; then
+    # Grok Build exposes no usage/limits API (checked v1.0.5: no usage command, no
+    # rate_limits in ~/.grok) — show the account as connected instead of "no data"
+    auth=false; [ -s "$path" ] && auth=true
+    acc_rows+=("$(jq -n --arg name "$name" --argjson auth "$auth" \
+      '{name:$name, kind:"grok", used_pct:null, resets_at:null, five_hour_pct:null,
+        stale_secs:0, no_usage_api:true, connected:$auth}')")
+    continue
+  fi
   if [ "$kind" = "claude" ]; then
     DIR2NAME[$(dirname "$path")]=$name
     # usage-claude.sh self-heals stale tokens (idle accounts stop refreshing them),
