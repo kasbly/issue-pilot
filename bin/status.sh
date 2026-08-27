@@ -265,6 +265,13 @@ resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" 
 
 sys_paused=false; paused && sys_paused=true
 
+# panel role switches: which loops may bill the Claude accounts
+cr_i=true; [ -f "$STATE_DIR/claude-role-issues.disabled" ] && cr_i=false
+cr_s=true; [ -f "$STATE_DIR/claude-role-scanner.disabled" ] && cr_s=false
+cr_p=true; [ -f "$STATE_DIR/claude-role-promote.disabled" ] && cr_p=false
+claude_roles=$(jq -n --argjson i "$cr_i" --argjson s "$cr_s" --argjson p "$cr_p" \
+  '{issues:$i, scanner:$s, promote:$p}')
+
 join_json "${acc_rows[@]}" | jq \
   --argjson gen "$now" --arg dispatch "$dispatch" --argjson paused "$sys_paused" \
   --argjson resources "$resources" \
@@ -272,10 +279,10 @@ join_json "${acc_rows[@]}" | jq \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
-  --argjson announce "$announce" \
+  --argjson announce "$announce" --argjson claude_roles "$claude_roles" \
   --argjson scanners "$(join_json "${scan_rows[@]}")" --argjson campaign "$campaign" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, paused:$paused, accounts:., lanes:$lanes, workers:$workers,
     resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
-    announce:$announce, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
+    announce:$announce, claude_roles:$claude_roles, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

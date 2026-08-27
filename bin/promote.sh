@@ -20,6 +20,12 @@ if [ "$force" -eq 0 ]; then
   [ "${AUTO_MERGE:-false}" = "true" ] || { log "promotion requires AUTO_MERGE=true"; exit 0; }
 fi
 
+# panel role switch: "Claude promotes" off while PROMOTE_CMD runs the claude CLI
+if [ "${PROMOTE_USES_CLAUDE:-true}" = "true" ] && [ -f "$STATE_DIR/claude-role-promote.disabled" ]; then
+  log "promotion runs on Claude but Claude is switched off for promotion (panel) — skipping"
+  exit 0
+fi
+
 staging="${STAGING_BRANCH:-staging}"
 waiting=$(gh api "repos/$GH_REPO/compare/$staging...${BASE_BRANCH:-main}" --jq .total_commits 2>/dev/null || echo 0)
 echo "$waiting $(date +%s)" >"$STATE_DIR/promotion-waiting"

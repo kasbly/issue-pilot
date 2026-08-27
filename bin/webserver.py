@@ -9,6 +9,7 @@ Actions (POST /api/action, JSON body {"action": ..., ...}):
   scanner_run_next {name}   make the next refill run this scanner once
   scanner_run_now {name}    launch refill immediately for this scanner, bypassing
                             the queue threshold and the Claude pace gate (one run)
+  claude_role_toggle {role}  allow/forbid Claude for: issues | scanner | promote
   announce_preview / announce_now   generate the release note (dry run) / post it
   campaign_set     {goal}   start a new campaign
   campaign_pause / campaign_resume / campaign_done
@@ -172,6 +173,18 @@ class Handler(SimpleHTTPRequestHandler):
                 kick("promote.sh", logfile="promote-manual.log", args=("--now",))
                 refresh_status()
                 return self._reply(200, {"ok": True})
+            if action == "claude_role_toggle":
+                # which loops may bill the Claude accounts: issues (lanes running
+                # the claude CLI), scanner (claude-model dims), promote (when
+                # PROMOTE_CMD runs claude). Flag present = role OFF.
+                role = req.get("role", "")
+                if role not in ("issues", "scanner", "promote"):
+                    return self._reply(400, {"error": "bad role"})
+                flag = state_path("claude-role-%s.disabled" % role)
+                off = set_flag(flag, not os.path.exists(flag))
+                kick("pace.sh")  # lanes react now, not at the next hourly tick
+                refresh_status()
+                return self._reply(200, {"ok": True, "role": role, "enabled": not off})
             if action in ("announce_preview", "announce_now"):
                 # release note for non-technical users: preview generates without
                 # posting; now posts the pending range (announce.sh is flock-guarded)

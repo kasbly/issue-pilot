@@ -53,6 +53,7 @@
 <div id="meta"></div>
 <div id="campaignSec"></div>
 <div class="cards" id="accounts"></div>
+<div id="claude-roles" style="margin:-6px 0 14px"></div>
 <h2>Queue &amp; refill</h2>
 <div class="cards" id="queue"></div>
 <div id="refill" class="drift" style="margin-top:8px"></div>
@@ -114,6 +115,16 @@ async function refresh() {
         : "system paused — scanning, pacing and running batches stop");
   document.getElementById("meta").textContent = "data collected " + fmtDur(now - s.generated_at) + " ago · page refreshes every 60s";
 
+  // which loops may bill the Claude accounts — flag files the loops check, so a
+  // toggle takes effect on the next tick (issues: immediately via a pace kick)
+  const roles = s.claude_roles;
+  document.getElementById("claude-roles").innerHTML = !roles ? "" :
+    `<span class="dim" style="font-size:12px">Claude works on:</span> ` +
+    [["issues","implementing GitHub issues (the claude lanes)"],
+     ["scanner","scanner dims whose model is a Claude model"],
+     ["promote","production promotion (only when PROMOTE_CMD runs claude)"]].map(([r, tip]) =>
+      `<button title="${tip}" style="margin-left:6px;${roles[r] ? "" : "opacity:.45;text-decoration:line-through"}"
+        onclick="api({action:'claude_role_toggle', role:'${r}'}, 'Claude ${roles[r] ? "OFF" : "ON"} for ${r}')">${r === "promote" ? "promotion" : r}${roles[r] ? " ✓" : " ✗"}</button>`).join("");
   document.getElementById("accounts").innerHTML = (s.accounts || []).map(a => {
     const secs = a.resets_at ? a.resets_at - now : null;
     const expected = secs != null ? Math.max(0, Math.min(100, 100 * (1 - secs/WEEK))) : null;

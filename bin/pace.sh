@@ -37,6 +37,15 @@ for id in ${LANES:-}; do
     eval "want_$id=0"
     continue
   fi
+  # panel role switch: "Claude works on issues" off ⇒ zero every lane whose
+  # command runs the claude CLI (other engines are unaffected)
+  if [ -f "$STATE_DIR/claude-role-issues.disabled" ]; then
+    case "$(lane_get "$id" CMD)" in *"claude -p"*)
+      log "[$label] Claude is switched off for issue work (panel)"
+      eval "want_$id=0"
+      continue ;;
+    esac
+  fi
 
   case "$mode" in
     always)

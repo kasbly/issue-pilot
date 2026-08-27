@@ -146,7 +146,9 @@ for pat in ${SCANNER_PACE_EXEMPT_MODELS:-}; do
 done
 if [ -n "$pace_exempt" ]; then
   run_via="$SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
-elif ! pick_claude_account; then
+# panel role switch: "Claude scans" off ⇒ treat Claude as unavailable, so the dim
+# takes the non-Claude fallback or defers — same path as an ahead-of-pace hour
+elif [ -f "$STATE_DIR/claude-role-scanner.disabled" ] || ! pick_claude_account; then
   # Codex fallback: while every Claude account rests at its pace line, dims listed
   # in SCANNER_FALLBACK_DIMS ("*" = all) may scan on a Codex account instead.
   # If the dim whose turn it is isn't fallback-listed, walk the rest of the ring —

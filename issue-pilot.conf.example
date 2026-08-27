@@ -53,6 +53,8 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 # Models billed outside the Claude subscriptions skip the Claude pace gate
 # (space-separated globs matched against the dim'"'"'s resolved model):
 #SCANNER_PACE_EXEMPT_MODELS="grok-*"
+# The panel's "Claude works on: issues / scanner / promotion" toggles write
+# state/claude-role-<role>.disabled — no conf edit needed for those.
 # Set to false when CAMPAIGN_CMD / PROMOTE_CMD bill another provider (grok, codex):
 #CAMPAIGN_USES_CLAUDE=true
 #PROMOTE_USES_CLAUDE=true
