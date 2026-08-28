@@ -31,6 +31,7 @@ for id in ${LANES:-}; do
   mode=$(lane_get "$id" MODE off)
   prev=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
   target=0
+  eval "prio_$id=0" # pace headroom ×10; unknown usage sorts as neutral
 
   if lane_disabled "$id"; then
     log "[$label] disabled from the panel"
@@ -55,11 +56,14 @@ for id in ${LANES:-}; do
       ucmd=$(lane_get "$id" USAGE_CMD)
       creds=$(lane_get "$id" CREDENTIALS)
       [ -z "$ucmd" ] && [ -n "$creds" ] && ucmd="CLAUDE_CREDENTIALS='$creds' bash bin/usage-claude.sh"
-      if [ -n "$ucmd" ] && read -r a_pct _ < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${a_pct:-}" ]; then
+      if [ -n "$ucmd" ] && read -r a_pct a_secs _ < <(bash -c "$ucmd" 2>/dev/null) && [ -n "${a_pct:-}" ]; then
         if awk -v p="$a_pct" -v h="${HARD_STOP_PCT:-98}" 'BEGIN { exit !(p >= h) }'; then
           log "[$label] account at ${a_pct}% — hard stop until reset"
           target=0
         fi
+        # headroom score for the allocation order (same formula as window mode)
+        [ -n "${a_secs:-}" ] && eval "prio_$id=$(awk -v s="$a_secs" -v p="$a_pct" \
+          'BEGIN { printf "%d", (100 * (1 - s / 604800) - p) * 10 }')"
       fi
       log "[$label] always-on concurrency=$target"
       ;;
@@ -93,6 +97,7 @@ for id in ${LANES:-}; do
           log "[$label] 5h window at ${h5pct}% (resets in $(( ${h5secs:-0} / 60 ))m) — throttling $target -> $h5cap"
           target=$h5cap
         fi
+        eval "prio_$id=$(awk -v b="$behind" 'BEGIN { printf "%d", b * 10 }')"
         state=on-pace; [ "$target" -gt 0 ] && state=BEHIND
         log "[$label] used=${pct}% pace=${expected}% behind=${behind}% resets_in=$((secs / 3600))h $state concurrency=$target"
       else
@@ -108,11 +113,19 @@ for id in ${LANES:-}; do
   eval "want_$id=\$target"
 done
 
+# Allocation order: the lane whose account is furthest BEHIND its pace line goes
+# first, so slots keep rotating toward the lowest-usage account instead of a fixed
+# ranking burning one provider ahead of pace. Unknown usage scores 0; ties keep
+# LANES order (sort -s is stable).
+alloc_order=$(for id in ${LANES:-}; do eval "printf '%s %s\n' \"\${prio_$id:-0}\" \"$id\""; done \
+  | sort -s -rn -k1,1 | awk '{print $2}')
+log "allocation order (most pace headroom first): $(echo $alloc_order)"
+
 # Allocate the budget in two passes so no active lane is ever starved to zero:
-# pass 1 guarantees every lane that wants workers one slot (in LANES order);
-# pass 2 hands out the remainder in LANES order (put deadline lanes first).
+# pass 1 guarantees every lane that wants workers one slot;
+# pass 2 hands out the remainder in the same headroom order.
 remaining=$budget
-for id in ${LANES:-}; do
+for id in $alloc_order; do
   eval "w=\$want_$id"
   g=0
   if [ "$w" -gt 0 ] && [ "$remaining" -gt 0 ]; then
@@ -121,7 +134,7 @@ for id in ${LANES:-}; do
   fi
   eval "grant_$id=\$g"
 done
-for id in ${LANES:-}; do
+for id in $alloc_order; do
   eval "w=\$want_$id; g=\$grant_$id"
   extra=$((w - g))
   [ "$extra" -gt "$remaining" ] && extra=$remaining

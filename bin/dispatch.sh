@@ -48,7 +48,7 @@ while true; do
       label=$(lane_get "$id" LABEL "$id")
       log "lane $id: starting batch (concurrency=$c)"
       date +%s >"$STATE_DIR/lane-$id.batch-started"
-      CONCURRENCY=$c BATCH_SIZE=$BATCH_SIZE GH_REPO=$GH_REPO \
+      CONCURRENCY=$c BATCH_SIZE=$(lane_get "$id" BATCH_SIZE "$BATCH_SIZE") GH_REPO=$GH_REPO \
         BASE_BRANCH="${BASE_BRANCH:-main}" AUTO_MERGE="${AUTO_MERGE:-false}" \
         MERGE_METHOD="${MERGE_METHOD:---merge}" \
         ISSUE_ORDER="${ISSUE_ORDER:-oldest}" SORT_DIR=$sort_dir \

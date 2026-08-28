@@ -95,7 +95,9 @@ POLL_SECS=60                         # dispatcher poll interval
 BASE_BRANCH="main"                   # branch subagents branch from and open PRs against
 ISSUE_ORDER="oldest"                 # "oldest" or "newest" issues first
 AUTO_MERGE=false                     # true = merge green-CI PRs; false = leave for review
-BATCH_SIZE=25                        # issues per batch session (small batches survive session limits)
+BATCH_SIZE=25                        # issues per batch session; small batches (3-5) re-pick the account
+                                     # and re-check pace between batches — tighter rotation, slightly
+                                     # more session-startup overhead. Per-lane: LANE_<id>_BATCH_SIZE.
 #REPO_DIR="/path/to/shared-clone"    # shared base clone; subagents branch worktrees off it (default: <issue-pilot>/repo)
 
 # --- Lanes: the accounts that implement issues ---
