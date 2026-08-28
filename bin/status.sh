@@ -125,7 +125,13 @@ throughput=$(jq -n --argjson m "$merged" --arg today "$(date +%F)" --arg yday "$
 
 # per-lane batch progress: PRs are attributed by their pilot-<lane>/ branch prefix
 lane_rows=()
-for id in ${LANES:-}; do
+# show lanes in the pace allocator's priority order (most pace headroom first),
+# appending any lane the allocator hasn't scored yet
+lane_order=""
+for id in $(cat "$STATE_DIR/alloc-order" 2>/dev/null) ${LANES:-}; do
+  case " ${LANES:-} " in *" $id "*) case " $lane_order " in *" $id "*) ;; *) lane_order="$lane_order $id" ;; esac ;; esac
+done
+for id in $lane_order; do
   conc=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
   started=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
   l_label=$(lane_get "$id" LABEL "$id")

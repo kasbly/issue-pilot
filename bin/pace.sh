@@ -120,6 +120,7 @@ done
 alloc_order=$(for id in ${LANES:-}; do eval "printf '%s %s\n' \"\${prio_$id:-0}\" \"$id\""; done \
   | sort -s -rn -k1,1 | awk '{print $2}')
 log "allocation order (most pace headroom first): $(echo $alloc_order)"
+echo $alloc_order >"$STATE_DIR/alloc-order" # panel shows lanes in this order
 
 # Allocate the budget in two passes so no active lane is ever starved to zero:
 # pass 1 guarantees every lane that wants workers one slot;
