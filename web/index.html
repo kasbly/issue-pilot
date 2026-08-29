@@ -1,311 +1,640 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>issue-pilot status</title>
+<title>issue-pilot — Mission Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f1115; --card:#181b22; --line:#262b35; --fg:#e6e9ef; --dim:#8b93a3;
-          --ok:#4cc38a; --warn:#e5b454; --bad:#e5646e; --accent:#6ea8fe; }
-  * { box-sizing:border-box; }
-  body { margin:0; padding:24px; background:var(--bg); color:var(--fg);
-         font:14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  h1 { font-size:16px; margin:0 0 4px; } h2 { font-size:13px; color:var(--dim); margin:28px 0 10px; text-transform:uppercase; letter-spacing:.08em; }
-  #meta { color:var(--dim); font-size:12px; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px; margin-top:16px; }
-  #queue { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
-  .card .name { font-weight:600; font-size:15px; }
-  .kind { font-size:11px; color:var(--dim); border:1px solid var(--line); border-radius:99px; padding:1px 8px; margin-left:8px; }
-  .big { font-size:28px; font-weight:700; margin:10px 0 2px; }
-  .bar { position:relative; height:10px; background:#0a0c10; border:1px solid var(--line); border-radius:99px; margin:10px 0 6px; overflow:hidden; }
-  .bar .fill { position:absolute; inset:0 auto 0 0; border-radius:99px; }
-  .bar .pace { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--fg); opacity:.7; }
-  .row { display:flex; justify-content:space-between; color:var(--dim); font-size:12px; }
-  .drift { font-size:12px; margin-top:6px; }
-  .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)} .dim{color:var(--dim)}
-  table { width:100%; border-collapse:collapse; }
-  td, th { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); font-size:13px; }
-  th { color:var(--dim); font-weight:500; font-size:12px; }
-  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
-  .pill { display:inline-block; border-radius:99px; padding:1px 10px; font-size:12px; border:1px solid var(--line); }
-  .empty { color:var(--dim); padding:10px 0; }
-  button { background:#232836; color:var(--fg); border:1px solid var(--line); border-radius:8px;
-           padding:5px 12px; font:inherit; font-size:12px; cursor:pointer; }
-  button:hover { border-color:var(--accent); }
-  button.primary { background:var(--accent); color:#0b0d12; font-weight:600; border:none; }
-  .toggle { width:38px; height:20px; border-radius:99px; background:#2a2f3c; border:1px solid var(--line);
-            position:relative; cursor:pointer; display:inline-block; vertical-align:middle; }
-  .toggle::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px;
-                   border-radius:50%; background:var(--dim); transition:all .15s; }
-  .toggle.on { background:rgba(76,195,138,.25); border-color:var(--ok); }
-  .toggle.on::after { left:20px; background:var(--ok); }
-  .quote { border-left:3px solid var(--line); padding:6px 12px; color:var(--dim); font-size:12px; margin:10px 0; white-space:pre-wrap; }
-  textarea { width:100%; background:#0a0c10; color:var(--fg); border:1px solid var(--line);
-             border-radius:8px; padding:8px; font:inherit; font-size:13px; }
-  select { background:#0a0c10; color:var(--fg); border:1px solid var(--line);
-           border-radius:8px; padding:4px 8px; font:inherit; font-size:12px; }
-  .controls { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-  .toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--accent);
-           color:#0b0d12; padding:8px 18px; border-radius:99px; font-weight:600; display:none; z-index:9; }
-</style>
+:root{
+  --bg:#0e1420; --card:#151d2c; --line:#24304a; --fg:#e8edf6; --dim:#8b97ad;
+  --accent:#3ec98e; --gold:#d4a843; --bad:#e5636c; --warn:#e0a83e;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:radial-gradient(1100px 500px at 50% -120px,#16233a 0%,var(--bg) 65%) fixed,var(--bg);
+  color:var(--fg); font:15px/1.55 "Sora",system-ui,-apple-system,sans-serif; padding-bottom:44px;
+}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.app{display:flex;min-height:calc(100vh - 44px);max-width:1180px;margin:0 auto}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
 
-<h1>issue-pilot <span id="dispatch" class="pill"></span>
-  <button id="power" style="margin-left:10px"></button></h1>
-<div id="meta"></div>
-<div id="campaignSec"></div>
-<div class="cards" id="accounts"></div>
-<div id="claude-roles" style="margin:-6px 0 14px"></div>
-<h2>Queue &amp; refill</h2>
-<div class="cards" id="queue"></div>
-<div id="refill" class="drift" style="margin-top:8px"></div>
-<h2>Release</h2>
-<div class="cards" id="release"></div>
-<h2>Routine scanners</h2><div id="scanners"></div>
-<h2>Lanes</h2><div id="lanes"></div>
-<div id="resources" class="drift" style="margin-top:8px"></div>
-<div class="toast" id="toast"></div>
-<h2>Working now</h2><div id="workers"></div>
-<h2>Claimed issues</h2><div id="claimed"></div>
-<h2>Recent PRs</h2><div id="prs"></div>
+.banner{display:flex;align-items:center;gap:10px;max-width:1180px;margin:0 auto;padding:9px 18px;
+  background:rgba(224,168,62,.1);border:1px solid rgba(224,168,62,.4);border-top:none;
+  border-radius:0 0 12px 12px;color:var(--warn);font-size:13.5px}
+.banner svg{flex:none}
+.banner .x{margin-left:auto;background:none;border:none;color:var(--warn);cursor:pointer;font:16px "Sora",sans-serif;padding:0 4px;opacity:.7}
+.banner .x:hover{opacity:1}
+
+/* rail */
+.rail{width:260px;flex:none;border-right:1px solid var(--line);padding:28px 14px 20px;display:flex;flex-direction:column;gap:4px}
+.brand{font-weight:700;font-size:15px;letter-spacing:.4px;padding:0 12px 18px;display:flex;align-items:center;gap:9px}
+.brand svg{color:var(--accent)}
+.rail-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;background:none;width:100%;text-align:left;color:var(--fg);font:inherit}
+.rail-item:hover{background:rgba(255,255,255,.03)}
+.rail-item.sel{background:var(--card);border-color:var(--line)}
+.rail-item .nm{flex:1;font-size:14px}
+.rail-item .st{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--dim);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--dim)}
+.dot.run{background:var(--accent);box-shadow:0 0 8px rgba(62,201,142,.5)}
+.dot.gold{background:var(--gold);box-shadow:0 0 8px rgba(212,168,67,.45)}
+.dot.warn{background:var(--warn)}
+.dot.sm{width:7px;height:7px}
+body.paused .dot{background:var(--dim)!important;box-shadow:none!important}
+.rail-item.needs{margin-top:14px;border:1px solid rgba(224,168,62,.35);background:rgba(224,168,62,.07)}
+.rail-item.needs .nm,.rail-item.needs .st{color:var(--warn)}
+.rail-spacer{flex:1}
+.pause-row{display:flex;align-items:center;justify-content:space-between;padding:12px;border-top:1px solid var(--line);margin-top:12px}
+.pause-row span{font-size:13px;color:var(--dim)}
+.switch{width:40px;height:22px;border-radius:11px;background:var(--line);border:none;cursor:pointer;position:relative;transition:background .15s;flex:none}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--fg);transition:left .15s}
+.switch.on{background:var(--bad)}
+.switch.on::after{left:21px}
+.switch.sm{width:30px;height:17px}
+.switch.sm::after{width:11px;height:11px}
+.switch.sm.on::after{left:16px}
+.switch.ok.on{background:var(--accent)}
+
+/* pane */
+.pane{flex:1;padding:34px 44px 60px;min-width:0}
+.crumb{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px}
+.headline{font-size:22px;font-weight:600;line-height:1.65;max-width:720px}
+.now{margin-top:14px;font-size:13.5px;color:var(--dim);display:flex;align-items:center;gap:8px}
+.now .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pu 1.6s infinite;flex:none}
+body.paused .now .pulse{background:var(--dim);animation:none}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+.status-line{margin-top:8px;font-size:12.5px;color:var(--dim);font-family:"JetBrains Mono",ui-monospace,monospace;max-width:720px}
+.status-line .warn{color:var(--warn)}
+.status-line .ok{color:var(--accent)}
+
+.preview{margin-top:24px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:16px 18px;max-width:720px}
+.preview h4{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent);margin-bottom:7px;display:flex;gap:7px;align-items:center}
+.preview p{font-size:14px}
+.preview p em{color:var(--gold);font-style:normal;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px}
+
+.section{margin-top:30px;max-width:720px}
+.section h3{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.rows{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.012)}
+.row:last-child{border-bottom:none}
+.row.off{opacity:.42}
+.row .grow{flex:1;min-width:0}
+.row .lbl{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:13px}
+.row .sub{font-size:12px;color:var(--dim)}
+.tag{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--dim);white-space:nowrap}
+.tag.gold{color:var(--gold);border-color:rgba(212,168,67,.4)}
+.hist{list-style:none;max-width:720px}
+
+.today{display:flex;gap:22px;margin-top:20px;padding:12px 16px;background:var(--card);border:1px solid var(--line);border-radius:12px;max-width:720px;font-size:13px;color:var(--dim);flex-wrap:wrap}
+.today b{font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:600;color:var(--fg);margin-right:5px}
+
+.disc{background:none;border:none;color:var(--dim);font:12.5px "JetBrains Mono",ui-monospace,monospace;cursor:pointer;padding:0;margin-top:10px;display:inline-flex;align-items:center;gap:6px}
+.disc:hover{color:var(--accent)}
+.disc .car{display:inline-block;transition:transform .15s}
+.disc.open .car{transform:rotate(90deg)}
+.procs{list-style:none;margin:10px 0 0;max-width:720px;border:1px solid var(--line);border-radius:12px;padding:6px 0;background:rgba(255,255,255,.012)}
+.procs li{display:flex;align-items:center;gap:10px;padding:6px 16px;font:12.5px "JetBrains Mono",ui-monospace,monospace;color:var(--dim)}
+.procs li b{color:var(--fg);font-weight:500}
+
+/* chips */
+.chip{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:.86em;font-weight:500;color:var(--accent);background:none;border:1px solid transparent;border-bottom:1px dotted var(--accent);border-radius:2px;padding:1px 3px;cursor:pointer;line-height:inherit}
+.chip:hover{background:rgba(62,201,142,.12);border-radius:999px;border:1px solid rgba(62,201,142,.4);padding:1px 9px}
+.chip.gold{color:var(--gold);border-bottom-color:var(--gold)}
+.chip.gold:hover{background:rgba(212,168,67,.12);border-color:rgba(212,168,67,.4)}
+.chip.na{color:var(--dim);border-bottom-color:var(--dim)}
+
+.btn{font:12.5px "Sora",sans-serif;font-weight:600;color:var(--fg);background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:6px 13px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.warn:hover{border-color:var(--warn);color:var(--warn)}
+.btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+.btn.confirm{border-color:var(--bad);color:var(--bad);background:rgba(229,99,108,.08)}
+.btn.small{padding:4px 10px;font-size:11.5px}
+textarea{width:100%;min-height:74px;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--fg);font:13.5px "Sora",sans-serif;padding:10px 12px;resize:vertical}
+textarea:focus{outline:none;border-color:var(--accent)}
+
+.bar{position:relative;height:6px;border-radius:3px;background:var(--line);overflow:visible;margin-top:6px;max-width:340px}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.bar i.warn{background:var(--warn)}
+.bar .pace{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg);opacity:.65}
+.bar.sm{display:inline-block;height:4px;width:72px;margin:0 6px 1px 0;vertical-align:middle;overflow:hidden}
+.bar.wide{max-width:720px;height:8px;overflow:hidden;margin-top:14px}
+
+.pop{position:fixed;z-index:50;background:#182238;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.5);padding:8px;min-width:180px;display:none}
+.pop.open{display:block}
+.pop .grp{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);padding:7px 10px 3px}
+.pop .opt{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;text-align:left;background:none;border:none;color:var(--fg);font:13px "JetBrains Mono",ui-monospace,monospace;padding:7px 10px;border-radius:7px;cursor:pointer}
+.pop .opt:hover{background:rgba(62,201,142,.12)}
+.pop .opt .tick{color:var(--accent);visibility:hidden}
+.pop .opt.cur .tick{visibility:visible}
+
+#toast{position:fixed;bottom:58px;left:50%;transform:translate(-50%,16px);background:#182238;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:10px 18px;font-size:13.5px;box-shadow:0 12px 34px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.22s;z-index:60;display:flex;gap:9px;align-items:center;max-width:90vw}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast svg{color:var(--accent);flex:none}
+#toast.err{border-left-color:var(--bad)} #toast.err svg{color:var(--bad)}
+
+.tg-card{margin-top:16px;max-width:560px;background:#182238;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.tg-card .hd{font-size:12px;color:var(--gold);font-family:"JetBrains Mono",ui-monospace,monospace;margin-bottom:10px}
+.tg-card pre{white-space:pre-wrap;font:14px/1.6 "Sora","Tajawal",sans-serif}
+body.paused .headline,body.paused .now{opacity:.55}
+
+.footbar{position:fixed;bottom:0;left:0;right:0;z-index:40;background:var(--card);border-top:1px solid var(--line);
+  font:11.5px "JetBrains Mono",ui-monospace,monospace;color:var(--dim);padding:9px 0}
+.footbar .in{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+@media (max-width:900px){
+  .app{flex-direction:column}
+  .rail{width:100%;flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--line);padding:14px;align-items:center}
+  .brand{padding:0 10px 0 0}
+  .rail-item{width:auto;white-space:nowrap}
+  .rail-item.needs{margin-top:0}
+  .rail-spacer{display:none}
+  .pause-row{border-top:none;margin:0;padding:0 8px}
+  .pause-row span{display:none}
+  .pane{padding:24px 18px 60px}
+  .headline{font-size:19px}
+}
+</style>
+</head>
+<body>
+<div id="banner"></div>
+<div class="app">
+  <nav class="rail" id="rail"></nav>
+  <main class="pane" id="pane"><div class="crumb">loading…</div></main>
+</div>
+<footer class="footbar"><div class="in" id="foot"></div></footer>
+<div class="pop" id="pop"></div>
+<div id="toast"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5l3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="toastMsg"></span></div>
 
 <script>
-const WEEK = 604800;
+"use strict";
+const WEEK = 604800, REPO = "https://github.com/kasbly/kasbly";
+let S = null, NOW = 0;
+const UI = { view:"scanner", confirmAct:null, procsOpen:false, noteOpen:false,
+             newCampOpen:false, assessOpen:false, goalOpen:false, bannerGone:false };
+
+/* ---------- helpers (esc/fmtDur kept from the previous page) ---------- */
 const fmtDur = s => {
-  if (s == null || s < 0) return "–";
+  if (s == null || s < 0 || isNaN(s)) return "–";
   const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
   return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
 };
 const esc = t => { const e = document.createElement("span"); e.textContent = t ?? ""; return e.innerHTML; };
+const escA = t => esc(t).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const ago = ts => ts ? fmtDur(NOW - ts) + " ago" : "–";
+const dash = v => v == null ? `<span style="color:var(--dim)">–</span>` : esc(v);
+const $ = s => document.querySelector(s);
 
-function toast(t) {
-  const el = document.getElementById("toast");
-  el.textContent = t; el.style.display = "block";
-  clearTimeout(el._t); el._t = setTimeout(() => el.style.display = "none", 2600);
+let toastT;
+function toast(msg, err) {
+  $("#toastMsg").textContent = msg;
+  $("#toast").className = "show" + (err ? " err" : "");
+  clearTimeout(toastT); toastT = setTimeout(() => $("#toast").className = "", 2800);
 }
 async function api(payload, msg) {
   try {
-    const res = await fetch("/api/action", { method: "POST", body: JSON.stringify(payload) });
+    const res = await fetch("/api/action", { method:"POST", body: JSON.stringify(payload) });
     const out = await res.json();
-    if (out.ok) { toast(msg); setTimeout(refresh, 4000); }
-    else toast("failed: " + (out.error || "unknown"));
-  } catch { toast("API unreachable (static server?)"); }
-}
-function newCampaign() {
-  const goal = document.getElementById("goalText").value.trim();
-  if (goal.length < 10) return toast("write the goal first (10+ chars)");
-  api({ action: "campaign_set", goal }, "campaign started — first gap analysis on next tick");
+    if (out.ok) { toast(msg); setTimeout(refresh, 2500); return true; }
+    toast("couldn't save: " + (out.error || "unknown"), true);
+  } catch { toast("couldn't save — API unreachable", true); }
+  return false;
 }
 
-async function refresh() {
-  let s;
-  try { s = await (await fetch("status.json", {cache:"no-store"})).json(); }
-  catch { document.getElementById("meta").textContent = "status.json unavailable"; return; }
-  const now = Math.floor(Date.now()/1000);
+/* ---------- data-derived vocab ---------- */
+const KNOWN_MODELS = ["grok-4.6","grok-4.5","fable","opus","sonnet","haiku","gpt-5.6-sol","gpt-5.6-terra"];
+const EFFORTS = ["low","medium","high","xhigh","max"];
+const modelFam = m => /^grok/.test(m) ? "Grok" : /^gpt/.test(m) ? "Codex" : "Claude";
+const billFam  = m => /^grok/.test(m) ? "SuperGrok" : /^gpt/.test(m) ? "Codex" : "your Claude subscription";
+function allModels() {                      // fixed list ∪ whatever the data mentions
+  const seen = new Set(KNOWN_MODELS);
+  (S.scanners||[]).forEach(x => x.model && seen.add(x.model));
+  (S.lanes||[]).forEach(l => l.model && seen.add(l.model));
+  const r = S.refill || {};
+  [r.scanner_model, fallbackPair()[0]].forEach(m => m && seen.add(m));
+  return [...seen];
+}
+/* ponytail: scanner_fallback is one string, sometimes "model/effort" (same shape as
+   refill detail "via grok-4.6/high") — split only when the tail is a known effort */
+function fallbackPair() {
+  const f = (S.refill || {}).scanner_fallback;
+  if (!f) return [null, null];
+  const i = f.lastIndexOf("/");
+  if (i > 0 && EFFORTS.includes(f.slice(i+1))) return [f.slice(0, i), f.slice(i+1)];
+  return [f, null];
+}
+const flat = a => [{ items: a.map(v => ({ v, label: String(v) })) }];
+const POPS = {
+  model:  () => ["Grok","Claude","Codex"].map(f =>
+            ({ grp: f, items: allModels().filter(m => modelFam(m) === f).map(v => ({ v, label: v })) }))
+            .filter(g => g.items.length),
+  effort: () => flat(EFFORTS),
+  laneMode: () => flat(["always on","follow my pace","off"]),
+  promoteAfter: cur => flat([...new Set([25,50,75,100,150, cur].filter(v => typeof v === "number"))].sort((a,b)=>a-b)),
+  refillThresh: cur => flat([...new Set([10,20,30,40,50, cur].filter(v => typeof v === "number"))].sort((a,b)=>a-b)),
+  batch: cur => flat([...new Set([1,2,3,5,10,25, cur].filter(v => typeof v === "number"))].sort((a,b)=>a-b)),
+};
 
-  const off = !!s.paused;
-  document.getElementById("dispatch").textContent =
-    off ? "PAUSED" : "dispatch: " + (s.dispatch || "?");
-  document.getElementById("dispatch").className =
-    "pill " + (off ? "warn" : s.dispatch === "active" ? "ok" : "bad");
-  const power = document.getElementById("power");
-  power.textContent = off ? "▶ Start system" : "⏸ Pause system";
-  power.className = off ? "primary" : "";
-  power.onclick = () => api(
-    { action: off ? "system_resume" : "system_pause" },
-    off ? "system started — lanes resume within a minute"
-        : "system paused — scanning, pacing and running batches stop");
-  document.getElementById("meta").textContent = "data collected " + fmtDur(now - s.generated_at) + " ago · page refreshes every 60s";
+/* ---------- popover-apply handlers ---------- */
+const APPLY = {
+  scanModel:  (a,v) => api({ action:"scanner_model",  name:a.name, model:v },  `${a.name} model → ${v} — takes effect next run`),
+  scanEffort: (a,v) => api({ action:"scanner_effort", name:a.name, effort:v }, `${a.name} effort → ${v} — takes effect next run`),
+  setting:    (a,v) => api({ action:"setting", key:a.key, value:String(v) }, "Saved — takes effect next run"),
+  laneMode: async (a,v) => {
+    if (v === "off") {
+      if (a.disabled) return toast(`${a.label} is already off`);
+      return api({ action:"lane_toggle", id:a.id }, `${a.label} switched off — its running batch stops`);
+    }
+    if (a.disabled && !await api({ action:"lane_toggle", id:a.id }, `${a.label} switched back on`)) return;
+    api({ action:"lane_mode", id:a.id, mode: v === "always on" ? "always" : "window" },
+        `${a.label} mode → ${v}`);
+  },
+};
 
-  // which loops may bill the Claude accounts — flag files the loops check, so a
-  // toggle takes effect on the next tick (issues: immediately via a pace kick)
-  const roles = s.claude_roles;
-  document.getElementById("claude-roles").innerHTML = !roles ? "" :
-    `<span class="dim" style="font-size:12px">Claude works on:</span> ` +
-    [["issues","implementing GitHub issues (the claude lanes)"],
-     ["scanner","scanner dims whose model is a Claude model"],
-     ["promote","production promotion (only when PROMOTE_CMD runs claude)"]].map(([r, tip]) =>
-      `<button title="${tip}" style="margin-left:6px;${roles[r] ? "" : "opacity:.45;text-decoration:line-through"}"
-        onclick="api({action:'claude_role_toggle', role:'${r}'}, 'Claude ${roles[r] ? "OFF" : "ON"} for ${r}')">${r === "promote" ? "promotion" : r}${roles[r] ? " ✓" : " ✗"}</button>`).join("");
-  document.getElementById("accounts").innerHTML = (s.accounts || []).map(a => {
-    const secs = a.resets_at ? a.resets_at - now : null;
+/* chip: value + popover kind + apply args. null value renders as dim "–" but stays editable */
+function chip(val, pop, arg, gold) {
+  const v = val == null ? "–" : String(val);
+  return `<button class="chip${gold ? " gold" : ""}${val == null ? " na" : ""}" data-pop="${pop}"
+    data-cur="${escA(v)}" data-arg="${escA(JSON.stringify(arg))}">${esc(v)}</button>`;
+}
+function previewBox(text) {
+  return `<div class="preview"><h4><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3"/><circle cx="8" cy="8" r="2.4"/></svg>Effect preview</h4><p>${text}</p></div>`;
+}
+
+/* ---------- rail ---------- */
+function railData() {
+  const r = S.refill || {}, promo = S.promotion || {}, camp = S.campaign || {}, ann = S.announce || {};
+  const live = (S.lanes||[]).reduce((n,l) => n + (l.workers_live || 0), 0);
+  const resting = (S.accounts||[]).filter(a => {
+    if (a.used_pct == null || !a.resets_at) return false;
+    const exp = Math.max(0, Math.min(100, 100 * (1 - (a.resets_at - NOW)/WEEK)));
+    return a.used_pct > exp;
+  }).length;
+  return [
+    { id:"scanner", nm:"Scanner", dot: S.paused ? "" : "run",
+      st: r.next_run ? "in " + fmtDur(r.next_run - NOW) : (r.last ? r.last.action : "–") },
+    { id:"workers", nm:"Workers", dot: live > 0 ? "run" : "", st: `${live} active` },
+    { id:"release", nm:"Release", dot: promo.active ? "gold" : "",
+      st: promo.active ? "promoting" : `${promo.waiting ?? "–"}/${promo.threshold ?? "–"}` },
+    { id:"campaign", nm:"Campaign", dot: camp.status === "active" ? "run" : "", st: camp.status || "none" },
+    { id:"tenant", nm:"Tenant note", dot: ann.pending ? "warn" : "",
+      st: !ann.enabled ? "off" : ann.pending ? "retry pending" : "idle" },
+    { id:"accounts", nm:"Accounts", dot: resting > 0 ? "warn" : "", st: resting > 0 ? `${resting} resting` : "on pace" },
+  ];
+}
+function renderRail() {
+  const blocked = (S.refill || {}).blocked_issues;
+  $("#rail").innerHTML = `
+    <div class="brand"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.8" y="1.8" width="12.4" height="12.4" rx="3"/><path d="M5.2 8.4l2 2 3.6-4.4"/></svg> issue-pilot</div>
+    ${railData().map(m => `
+    <button class="rail-item${UI.view === m.id ? " sel" : ""}" data-view="${m.id}">
+      <span class="dot ${m.dot}"></span><span class="nm">${m.nm}</span>
+      <span class="st">${S.paused ? "paused" : esc(m.st)}</span>
+    </button>`).join("")}
+    <button class="rail-item needs${UI.view === "needs" ? " sel" : ""}" data-view="needs">
+      <span style="color:var(--warn);display:flex"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8L15 13.8H1L8 1.8z"/><path d="M8 6.5v3.2"/></svg></span>
+      <span class="nm">Needs you</span><span class="st">${blocked ?? "–"} blocked</span>
+    </button>
+    <div class="rail-spacer"></div>
+    <div class="pause-row"><span>Pause everything</span>
+      <button class="switch${S.paused ? " on" : ""}" data-act="masterPause" aria-label="Pause everything"></button>
+    </div>`;
+}
+
+/* ---------- panes ---------- */
+function scannerPane() {
+  const r = S.refill || {}, sc = S.scanners || [];
+  const enabled = sc.filter(x => x.enabled);
+  const next = sc.find(x => x.queued_next && x.enabled) || enabled[0];
+  const preview = next
+    ? `Next <em>${esc(next.name)}</em> scan: ${esc(next.model ?? "–")}${next.effort ? ` (${esc(next.effort)})` : ""}, billed to ${billFam(next.model || "")}; runs when the queue drops under ${r.threshold ?? "–"} ready issues (now ${r.ready ?? "–"}).`
+    : "No scanner enabled — the queue will not refill.";
+  const rows = sc.map(x => `
+    <div class="row${x.enabled ? "" : " off"}" title="${escA(x.desc || "")}">
+      <button class="switch sm ok${x.enabled ? " on" : ""}" data-act="scanToggle" data-name="${escA(x.name)}" aria-label="Toggle ${escA(x.name)}"></button>
+      <div class="grow"><span class="lbl">${esc(x.name)}</span>
+        ${x.queued_next ? ` <span class="tag gold">next up</span>` : ""}
+        ${x.source && x.source !== "built-in" ? ` <span class="tag">${esc(x.source)}</span>` : ""}
+        <div class="sub">${[
+          x.last_run != null ? "last ran " + ago(x.last_run) : "never ran",
+          x.last_filed != null ? "filed " + esc(x.last_filed) : null,
+          x.last_focus ? "focus " + esc(x.last_focus) : null,
+          x.interval ? "every ≥" + esc(x.interval) : null,
+        ].filter(Boolean).join(" · ")}</div></div>
+      ${chip(x.model, "model",  { k:"scanModel",  name:x.name })}
+      ${chip(x.effort, "effort", { k:"scanEffort", name:x.name })}
+      <button class="btn small" data-act="runNext" data-name="${escA(x.name)}">Run next</button>
+      <button class="btn small" data-act="runNow" data-name="${escA(x.name)}">Run now</button>
+    </div>`).join("");
+  const last = r.last
+    ? `Last check ${ago(r.last.ts)} — ${r.last.action === "deferred"
+        ? `<span class="warn">deferred — no Claude account behind its pace line</span>`
+        : esc(r.last.action)}${r.last.detail ? ` (${esc(r.last.detail)})` : ""}`
+    : "No refill check recorded yet";
+  return `
+    <div class="crumb">Scanner · issue finder</div>
+    <div class="headline">Rotating through ${enabled.length} scan dimension${enabled.length === 1 ? "" : "s"}${next ? `, next up <span class="chip gold" style="cursor:default;border-bottom:none">${esc(next.name)}</span>` : ""} · scans when the queue drops under ${chip(r.threshold, "refillThresh", { k:"setting", key:"REFILL_THRESHOLD" })} ready issues.</div>
+    <div class="now"><span class="pulse"></span>Right now: ${S.paused ? "paused by you"
+      : r.ready != null && r.threshold != null
+        ? (r.ready < r.threshold ? `queue low — ${r.ready} ready of ${r.threshold} wanted, refill eligible`
+                                 : `waiting for the queue to drop (${r.ready} ready of ${r.threshold} wanted)`)
+        : "–"}</div>
+    <div class="status-line">${last}${r.next_run ? ` · next check in ${fmtDur(r.next_run - NOW)}` : ""}${r.scanner_model ? ` · default ${esc(r.scanner_model)}${r.scanner_effort ? ` (${esc(r.scanner_effort)})` : ""}` : ""}</div>
+    ${previewBox(preview)}
+    <div class="section"><h3>Dimensions</h3><div class="rows">${rows || `<div class="row"><span class="sub">no scanners resolved</span></div>`}</div>
+      <p class="sub" style="margin-top:10px;color:var(--dim)">a scanner = one .md file — your own in &lt;working-dir&gt;/scanners/ override built-ins; enabled ones rotate strictly, one per refill</p></div>
+    <div class="section"><h3>Fallback</h3>
+      <p style="font-size:14.5px">When Claude rests: ${chip(fallbackPair()[0], "model", { k:"setting", key:"SCANNER_FALLBACK_MODEL" })} (${chip(fallbackPair()[1], "effort", { k:"setting", key:"SCANNER_FALLBACK_EFFORT" })}).</p>
+    </div>`;
+}
+
+function workersPane() {
+  const lanes = S.lanes || [], t = S.throughput || {}, r = S.refill || {}, w = S.workers || [];
+  const live = lanes.reduce((n,l) => n + (l.workers_live || 0), 0);
+  const preview = `<em>${live}</em> live worker${live === 1 ? "" : "s"}; each new batch takes <em>${r.batch_size ?? "–"}</em> issues. Merged ${t.merged_today ?? "–"} PRs today vs ${t.merged_yesterday ?? "–"} yesterday${r.ready != null ? `; ${r.ready} issues ready to pick up` : ""}.`;
+  const rows = lanes.map(l => {
+    const off = l.disabled || l.mode === "off";
+    const running = !off && (l.workers_live || 0) > 0 && l.batch_started;
+    const batch = running
+      ? `batch: ${l.batch_done ?? 0} done of ${l.batch_target ?? "–"} · running ${fmtDur(NOW - l.batch_started)}`
+      : "idle";
+    return `
+    <div class="row${off ? " off" : ""}">
+      <span class="dot ${running ? "run" : ""}"></span>
+      <div class="grow"><span class="lbl">${esc(l.label)}</span>
+        <span class="sub mono" style="margin-left:8px">${l.model ? esc(l.model) + (l.effort ? ` (${esc(l.effort)})` : "") : "–"}</span>
+        <div class="sub">${batch}${l.workers_live != null ? ` · ${l.workers_live} of ${l.concurrency ?? "–"} workers live` : ""} · ${l.total_done ?? "–"} PRs all-time</div></div>
+      ${chip(off ? "off" : l.mode === "always" ? "always on" : "follow my pace", "laneMode",
+             { k:"laneMode", id:l.id, label:l.label, disabled: !!l.disabled }, true)}
+    </div>`; }).join("");
+  const procs = UI.procsOpen ? `<ul class="procs">${w.map(p => {
+      const role = p.role || "agent";
+      const c = /promot|release/i.test(role) ? "gold" : /scan/i.test(role) ? "warn" : "run";
+      return `<li><span class="dot sm ${c}"></span><span><b>${esc(role)}</b> (${esc(p.account)}) · pid ${esc(p.pid)} · ${fmtDur(p.uptime_secs)}</span></li>`;
+    }).join("") || `<li><span class="sub">no agent sessions running</span></li>`}</ul>` : "";
+  const roles = S.claude_roles;
+  const permRow = (key, label) => `
+    <div class="row"><span class="grow" style="font-size:13.5px">${label}</span>
+      <button class="switch sm ok${roles[key] ? " on" : ""}" data-act="role" data-role="${key}" aria-label="${label}"></button></div>`;
+  return `
+    <div class="crumb">Workers · issue lanes</div>
+    <div class="headline">Working the issue queue in priority order — each worker takes ${chip(r.batch_size, "batch", { k:"setting", key:"BATCH_SIZE" })} issues per batch.</div>
+    <div class="now"><span class="pulse"></span>Right now: ${S.paused ? "paused by you" : live > 0 ? `${live} agent session${live === 1 ? "" : "s"} running` : "idle — no live workers"}</div>
+    <button class="disc${UI.procsOpen ? " open" : ""}" data-act="toggleProcs"><span class="car">▸</span>${w.length} live process${w.length === 1 ? "" : "es"}</button>
+    ${procs}
+    <div class="today"><span><b>${t.merged_today ?? "–"}</b>PRs merged today</span><span><b>${t.merged_yesterday ?? "–"}</b>yesterday</span><span><b>${r.open_issues ?? "–"}</b>issues open</span></div>
+    ${previewBox(preview)}
+    <div class="section"><h3>Lanes (priority order)</h3><div class="rows">${rows || `<div class="row"><span class="sub">no lanes configured</span></div>`}</div>
+      <p class="sub" style="margin-top:10px;color:var(--dim)">a lane = one agent account — switching one off stops its running batch. Model and effort are pinned per engine, not editable here.</p></div>
+    ${roles ? `<div class="section"><h3>Claude permissions</h3><div class="rows">
+      ${permRow("issues", "Claude works on issues")}
+      ${permRow("scanner", "Claude runs scans")}
+      ${permRow("promote", "Claude runs promotion rounds")}
+    </div></div>` : ""}`;
+}
+
+function releasePane() {
+  const p = S.promotion || {}, t = S.throughput || {};
+  const pct = p.threshold ? Math.min(100, 100 * (p.waiting || 0) / p.threshold) : 0;
+  const rate = (t.merged_today && p.threshold) ? t.merged_today / p.threshold : null;
+  const preview = rate != null
+    ? `At today's merge rate (~${t.merged_today}/day) you'd release ~<em>${(Math.round(rate*10)/10)}×</em> per day. ${p.waiting >= p.threshold ? "Threshold reached — the next hourly check promotes." : `${p.threshold - (p.waiting||0)} more commits until the next automatic run.`}`
+    : `No merges recorded today — release cadence unknown.`;
+  const confirming = UI.confirmAct === "promote";
+  return `
+    <div class="crumb">Release · production promotion</div>
+    <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
+    <div class="now"><span class="pulse" style="background:${p.active ? "var(--gold)" : "var(--accent)"}"></span>Right now: ${S.paused ? "paused by you" : p.active ? "PROMOTING — dev → staging → main" : p.waiting >= p.threshold ? "threshold reached — next hourly check promotes" : "armed, counting commits"}</div>
+    <div class="status-line">${p.last ? `last release: <span class="${p.last.outcome === "succeeded" ? "ok" : "warn"}">${esc(p.last.outcome)}</span> · ${ago(p.last.ts)}` : "no release recorded yet"}</div>
+    <div class="bar wide"><i style="width:${pct}%;background:${p.active ? "var(--gold)" : "var(--accent)"}"></i></div>
+    ${previewBox(preview)}
+    ${p.active ? "" : `<div class="section">
+      <button class="btn warn${confirming ? " confirm" : ""}" data-act="promote">${confirming ? `Click again to confirm — promote ${p.waiting ?? "?"} commits to PRODUCTION now` : "Promote now"}</button>
+    </div>`}
+    <div class="section"><h3>Announce</h3>${announceBlock()}</div>`;
+}
+
+function announceBlock() {
+  const a = S.announce;
+  if (!a || !a.enabled) return `<div class="status-line">release notes are disabled</div>`;
+  const posting = UI.confirmAct === "postNote";
+  const last = a.last
+    ? `last: <span class="${a.last.outcome === "posted" ? "ok" : ""}">${esc(a.last.outcome)}</span> ${ago(a.last.ts)} · ${a.last.commits ?? "–"} changes`
+    : "nothing posted yet";
+  return `
+    <div class="status-line" style="margin:0 0 12px">${last}${a.pending ? ` · <span class="warn">pending — retry on next hourly tick</span>` : ""}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" data-act="genPreview">Generate preview</button>
+      ${a.preview ? `<button class="btn" data-act="toggleNote">${UI.noteOpen ? "Hide last note" : `Show last note · ${ago(a.preview.ts)}`}</button>` : ""}
+      <button class="btn warn${posting ? " confirm" : ""}" data-act="postNote">${posting ? "This sends a Telegram message to all tenants — click again to send" : "Post note now"}</button>
+    </div>
+    ${UI.noteOpen && a.preview ? `<div class="tg-card"><div class="hd">last generated note</div><pre dir="auto">${esc(a.preview.text)}</pre></div>` : ""}`;
+}
+
+function campaignPane() {
+  const c = S.campaign || {};
+  const form = UI.newCampOpen ? `
+      <textarea id="goalText" placeholder="State the goal with a measurable definition of done — e.g. Every dashboard page is usable at 375px: no horizontal scroll, tap targets 44px+."></textarea>
+      <div style="margin-top:10px;display:flex;gap:10px"><button class="btn" data-act="startCampaign">Start campaign</button>
+      <button class="btn" data-act="cancelCampaign">Cancel</button></div>`
+    : `<button class="btn" data-act="newCampaign">Start a new campaign</button>`;
+  if (!c.goal || c.status === "done" || c.status === "none") {
+    return `
+    <div class="crumb">Campaign · goal loop</div>
+    <div class="headline" style="color:var(--dim)">${c.goal && c.status === "done" ? `Last campaign achieved: ${esc(c.goal.split("\n")[0])}` : "No active campaign — give the system a goal and it works toward it until done."}</div>
+    <div class="section">${form}</div>
+    ${c.history ? `<div class="status-line">${esc(c.history)}</div>` : ""}`;
+  }
+  const paused = c.status === "paused";
+  const goalLine = c.goal.length > 300 && !UI.goalOpen ? esc(c.goal.slice(0, 300)) + "… " : esc(c.goal);
+  const preview = `${c.closed ?? "–"} gaps closed, ${c.open ?? "–"} open. ${paused ? "Paused — no more gap checks until you resume." : "Each check re-assesses the goal and files issues for the biggest gap."}`;
+  return `
+    <div class="crumb">Campaign · goal loop</div>
+    <div class="headline">${goalLine}${c.goal.length > 300 ? `<button class="disc${UI.goalOpen ? " open" : ""}" data-act="toggleGoal" style="margin-left:6px"><span class="car">▸</span>${UI.goalOpen ? "less" : "full goal"}</button>` : ""}</div>
+    <div class="now"><span class="pulse"></span>Right now: ${S.paused || paused ? "paused" : `active · ${c.closed ?? "–"} done / ${c.open ?? "–"} open gaps`}</div>
+    ${previewBox(preview)}
+    ${c.assessment ? `<div class="section"><button class="disc${UI.assessOpen ? " open" : ""}" data-act="toggleAssess"><span class="car">▸</span>latest assessment</button>
+      ${UI.assessOpen ? `<div class="tg-card" style="margin-top:10px"><pre dir="auto">${esc(c.assessment)}</pre></div>` : ""}</div>`
+      : `<div class="status-line">no assessment yet — first gap analysis pending</div>`}
+    <div class="section" style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" data-act="pauseCampaign" data-paused="${paused ? 1 : ""}">${paused ? "Resume campaign" : "Pause campaign"}</button>
+      <button class="btn danger" data-act="doneCampaign">Mark done</button>
+    </div>
+    <div class="section">${form}</div>
+    ${c.history ? `<div class="status-line">${esc(c.history)}</div>` : ""}`;
+}
+
+function tenantPane() {
+  const a = S.announce || {};
+  return `
+    <div class="crumb">Tenant note · release announcements</div>
+    <div class="headline">${a.enabled ? "After each release, post a short summary to the tenants' Telegram · skips internal-only releases." : "Release notes are disabled."}</div>
+    <div class="now"><span class="pulse" style="${a.pending ? "background:var(--warn)" : "background:var(--dim);animation:none"}"></span>Right now: ${a.pending ? "retry pending — next hourly tick" : a.last ? `idle — last ${esc(a.last.outcome)} ${ago(a.last.ts)}` : "idle — nothing posted yet"}</div>
+    ${previewBox(a.last ? `Last note ${esc(a.last.outcome)} ${ago(a.last.ts)} covering <em>${a.last.commits ?? "–"}</em> changes. Posting now sends everything shipped since then.` : "Nothing posted yet — the first note covers everything shipped so far.")}
+    <div class="section">${announceBlock()}</div>`;
+}
+
+function accountsPane() {
+  const rows = (S.accounts || []).map(a => {
+    const secs = a.resets_at ? a.resets_at - NOW : null;
     const expected = secs != null ? Math.max(0, Math.min(100, 100 * (1 - secs/WEEK))) : null;
     const drift = (a.used_pct != null && expected != null) ? expected - a.used_pct : null;
-    const cls = drift == null ? "" : drift > 10 ? "warn" : drift < -10 ? "bad" : "ok";
-    const driftTxt = a.no_usage_api ? (a.connected ? "connected — provider has no usage API" : "not logged in") :
-      drift == null ? "no data" :
-      Math.abs(drift) < 1 ? "on pace" :
-      drift > 0 ? `${drift.toFixed(0)}% behind pace${drift > 10 ? " — quota will be left over" : ""}` :
-      `${(-drift).toFixed(0)}% ahead of pace`;
-    const stale = a.kind === "codex" && a.stale_secs > 3600 ? ` · snapshot ${fmtDur(a.stale_secs)} old` : "";
+    const cls = drift == null ? "dim" : drift > 10 ? "warn" : drift < -10 ? "bad" : "ok";
+    const driftTxt = a.no_usage_api ? (a.connected ? "connected — no usage API" : "not logged in")
+      : drift == null ? "no data"
+      : Math.abs(drift) < 1 ? "on pace"
+      : drift > 0 ? `${drift.toFixed(0)}% behind pace` : `${(-drift).toFixed(0)}% ahead of pace`;
     const h5 = a.five_hour_pct != null
-      ? ` · 5h window ${a.five_hour_pct.toFixed(0)}%${a.five_hour_pct >= 85 ? " ⚠" : ""}` : "";
-    return `<div class="card">
-      <span class="name">${esc(a.name)}</span><span class="kind">${esc(a.kind)}</span>
-      <div class="big">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : a.no_usage_api ? (a.connected ? "✓" : "✗") : "–"}</div>
-      <div class="bar">
-        <div class="fill" style="width:${a.used_pct ?? 0}%; background:${drift != null && drift > 10 ? "var(--warn)" : "var(--accent)"}"></div>
-        ${expected != null ? `<div class="pace" style="left:${expected}%" title="ideal pace ${expected.toFixed(0)}%"></div>` : ""}
+      ? `<div class="sub" style="margin-top:4px${a.five_hour_pct >= 85 ? ";color:var(--warn)" : ""}">5h window: <span class="bar sm"><i class="${a.five_hour_pct >= 85 ? "warn" : ""}" style="width:${a.five_hour_pct}%"></i></span>${a.five_hour_pct.toFixed(0)}%${a.five_hour_pct >= 85 ? " — near cap" : ""}</div>` : "";
+    const stale = a.kind === "codex" && a.stale_secs > 3600 ? ` · snapshot ${fmtDur(a.stale_secs)} old` : "";
+    return `
+    <div class="row" style="align-items:flex-start;padding:14px 16px">
+      <div class="grow"><span class="lbl">${esc(a.name)}</span> <span class="tag">${esc(a.kind)}</span>
+        ${a.no_usage_api ? `<div class="sub" style="margin-top:6px">${a.connected ? "connected — no usage API" : "not logged in"}</div>`
+          : `<div class="bar"><i class="${drift != null && drift < -10 ? "warn" : ""}" style="width:${a.used_pct ?? 0}%"></i>
+             ${expected != null ? `<span class="pace" style="left:${expected}%" title="ideal pace ${expected.toFixed(0)}%"></span>` : ""}</div>`}
+        <div class="sub" style="margin-top:6px">resets in ${fmtDur(secs)}${esc(stale)}</div></div>
+      <div style="text-align:right;flex:none">
+        <div class="lbl">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : a.no_usage_api ? (a.connected ? "✓" : "✗") : "–"}</div>
+        <div class="sub" style="color:var(--${cls === "ok" ? "accent" : cls === "dim" ? "dim" : cls})">${driftTxt}</div>
+        ${h5}
       </div>
-      <div class="row"><span>resets in ${fmtDur(secs)}</span>
-        <span>${a.resets_at ? new Date(a.resets_at*1000).toLocaleString(undefined,{weekday:"short",hour:"2-digit",minute:"2-digit"}) : ""}</span></div>
-      <div class="drift ${cls}">${driftTxt}${esc(h5)}${esc(stale)}</div>
-    </div>`;
-  }).join("");
-
-  const r = s.refill || {}, t = s.throughput || {};
-  const tile = (label, value, cls) =>
-    `<div class="card"><div class="row"><span>${label}</span></div><div class="big ${cls || ""}">${value}</div></div>`;
-  document.getElementById("queue").innerHTML =
-    tile("ready issues", `${r.ready ?? "–"}`, (r.ready != null && r.ready < r.threshold) ? "bad" : "") +
-    tile("open issues", r.open_issues ?? "–") +
-    tile(`blocked issues <span class="dim">· need your decision</span>`, r.blocked_issues ?? "–", (r.blocked_issues > 0) ? "warn" : "") +
-    tile("PRs merged today", t.merged_today ?? "–", "ok") +
-    tile("PRs merged yesterday", t.merged_yesterday ?? "–");
-  const lastR = r.last
-    ? `last refill check ${fmtDur(now - r.last.ts)} ago — ${r.last.action === "ran" ? "scanner RAN" : r.last.action === "deferred" ? "DEFERRED — no Claude account behind its pace line" : "skipped"} (${esc(r.last.detail)}, threshold ${r.threshold})`
-    : `no refill check recorded yet (threshold ${r.threshold ?? "?"})`;
-  const scanModel = (r.scanner_model ? ` · scanner: ${r.scanner_model}${r.scanner_effort ? " (" + r.scanner_effort + ")" : ""}` : "")
-    + (r.scanner_fallback ? ` · fallback: ${esc(r.scanner_fallback)}` : "");
-  document.getElementById("refill").textContent =
-    lastR + (r.next_run ? ` · next check in ${fmtDur(r.next_run - now)}` : "") + scanModel;
-
-  // release note for non-technical users (announce.sh): posted after each verified
-  // release; Preview runs the model without posting, Post sends the pending range
-  const announceRow = a => {
-    if (!a || !a.enabled) return "";
-    const last = a.last
-      ? `release note: ${esc(a.last.outcome)} ${fmtDur(now - a.last.ts)} ago (${a.last.commits} changes)`
-      : "release note: nothing posted yet";
-    const pend = a.pending ? ` · <span class="warn">pending — retry on next hourly tick</span>` : "";
-    const prev = a.preview
-      ? `<details style="margin-top:4px"><summary class="dim" style="cursor:pointer;font-size:12px">last generated note · ${fmtDur(now - a.preview.ts)} ago</summary><div class="quote" dir="auto">${esc(a.preview.text)}</div></details>`
-      : "";
-    return `<div class="row" style="margin-top:6px"><span>${last}${pend}</span>
-        <span><button onclick="api({action:'announce_preview'}, 'generating preview — appears below in ~1 min')">Preview note</button>
-        <button onclick="if(confirm('Post the release note for everything shipped since the last one? This sends a message to your users.')) api({action:'announce_now'}, 'posting — watch this row')">Post note</button></span></div>${prev}`;
-  };
-  const promo = s.promotion;
-  document.getElementById("release").innerHTML = !promo ? "" : (() => {
-    const pctToGo = Math.min(100, 100 * promo.waiting / Math.max(promo.threshold, 1));
-    const state = promo.active
-      ? `<span class="ok">PROMOTING NOW — dev → staging → main</span>`
-      : promo.enabled
-        ? (promo.waiting >= promo.threshold
-            ? `<span class="warn">threshold reached — next hourly check promotes</span>`
-            : `armed · promotes automatically at ${promo.threshold} commits`)
-        : `<span class="dim">disabled — manual only (issue-pilot promote --now)</span>`;
-    const last = promo.last
-      ? `last release: ${esc(promo.last.outcome)} · ${fmtDur(now - promo.last.ts)} ago`
-      : "no release recorded yet";
-    return `<div class="card">
-      <span class="name">production promotion</span><span class="kind">${promo.enabled ? "auto" : "manual"}</span>
-      <div class="big">${promo.waiting} <span style="font-size:14px;color:var(--dim)">/ ${promo.threshold} commits</span></div>
-      <div class="bar"><div class="fill" style="width:${pctToGo}%; background:${promo.active ? "var(--ok)" : "var(--accent)"}"></div></div>
-      <div class="drift">${state}</div>
-      <div class="row" style="margin-top:6px"><span>${last}</span>
-        ${promo.active ? "" : `<button onclick="if(confirm('Promote NOW? This merges dev → staging → main and deploys PRODUCTION, ignoring the ${promo.threshold}-commit threshold.')) api({action:'promote_now'}, 'promotion launched — watch this card')">Promote now</button>`}
-      </div>
-      ${announceRow(s.announce)}
-    </div>`;
-  })();
-
-  const lanes = s.lanes || [];
-  document.getElementById("lanes").innerHTML = lanes.length
-    ? `<div class="card" style="padding:6px 16px"><table>
-       <tr><th></th><th>lane</th><th>model</th><th>mode</th><th>state</th><th>current batch</th><th>total PRs</th></tr>` +
-      lanes.map(l => {
-        const on = l.concurrency > 0 && !l.disabled && !off;
-        const batch = (on && l.batch_started)
-          ? `${l.batch_done} done / ${Math.max(l.batch_target - l.batch_done, 0)} left of ${l.batch_target} picked · running ${fmtDur(now - l.batch_started)}`
-          : "—";
-        const model = l.model ? esc(l.model) + (l.effort ? ` <span class="kind">${esc(l.effort)}</span>` : "") : "—";
-        const live = l.workers_live || 0;
-        const state = l.disabled ? `<span class="dim">disabled</span>`
-          : off ? `<span class="warn">paused</span>`
-          : !on ? "idle"
-          : live > 0 ? `<span class="ok">working · target ${l.concurrency} subagents</span>`
-          : (s.refill && s.refill.ready === 0)
-            ? `<span class="warn">wants ${l.concurrency} — queue empty</span>`
-            : `starting · wants ${l.concurrency}`;
-        return `<tr>
-          <td><div class="toggle ${l.disabled ? "" : "on"}" onclick="this.classList.toggle('on'); api({action:'lane_toggle',id:'${esc(l.id)}'}, '${esc(l.label)} ${l.disabled ? "activated" : "deactivated"}')"></div></td>
-          <td>${esc(l.label)}</td><td>${model}</td>
-          <td><select onchange="api({action:'lane_mode',id:'${esc(l.id)}',mode:this.value}, '${esc(l.label)} mode → ' + this.value)">
-            ${["always", "window"].concat(l.mode === "off" ? ["off"] : []).map(m => `<option${l.mode === m ? " selected" : ""}>${m}</option>`).join("")}
-          </select></td>
-          <td class="${on ? "ok" : ""}">${state}</td>
-          <td>${batch}</td><td>${l.total_done}</td></tr>`;
-      }).join("") + `</table>
-      <div class="row" style="padding:10px 0 12px"><span class="dim">a lane = one agent (Claude, Codex, …) — deactivating one stops its running batch; its claimed issues keep the claim label until you remove it</span></div></div>`
-    : `<div class="empty">no lanes configured</div>`;
-
-  const camp = s.campaign;
-  document.getElementById("campaignSec").innerHTML = (() => {
-    const form = `<div id="newCamp" style="display:none;margin-top:12px">
-        <textarea id="goalText" rows="3" placeholder="State the goal with a measurable definition of done — e.g. Every dashboard page is usable at 375px: no horizontal scroll, tap targets 44px+, mobile e2e for the main flows."></textarea>
-        <div class="controls"><button class="primary" onclick="newCampaign()">Start campaign</button>
-        <button onclick="document.getElementById('newCamp').style.display='none'">Cancel</button></div></div>`;
-    if (!camp || !camp.goal || camp.status === "done") {
-      const doneNote = camp && camp.goal && camp.status === "done"
-        ? `<div class="drift ok">last campaign achieved: ${esc(camp.goal.split("\n")[0])}</div>` : "";
-      return `<h2>Campaign</h2><div class="card">${doneNote}
-        <div class="empty">no active campaign — give the system a goal and it works toward it until done</div>
-        <div class="controls"><button class="primary" onclick="document.getElementById('newCamp').style.display='block'">+ New campaign</button></div>${form}</div>`;
-    }
-    const paused = camp.status === "paused";
-    return `<h2>Campaign</h2><div class="card">
-      <span class="name" style="font-weight:600;font-size:15px">${esc(camp.goal.split("\n")[0])}</span>
-      <span class="kind ${paused ? "warn" : "ok"}">${paused ? "PAUSED" : "ACTIVE"}</span>
-      <div class="big">${camp.closed} <span style="font-size:14px;color:var(--dim)">done</span>
-        &nbsp;·&nbsp; ${camp.open} <span style="font-size:14px;color:var(--dim)">open gaps</span></div>
-      ${camp.assessment ? `<div class="quote">${esc(camp.assessment)}</div>` : `<div class="drift dim">no assessment yet — first gap analysis pending</div>`}
-      <div class="controls">
-        <button onclick="api({action:'campaign_${paused ? "resume" : "pause"}'}, 'campaign ${paused ? "resumed" : "paused"}')">${paused ? "Resume" : "Pause"}</button>
-        <button onclick="api({action:'campaign_done'}, 'campaign archived')">Mark done</button>
-        <button class="primary" onclick="document.getElementById('newCamp').style.display='block'">+ New campaign</button>
-      </div>${form}
-      ${camp.history ? `<div class="drift dim" style="margin-top:8px">${esc(camp.history)}</div>` : ""}
-    </div>`;
-  })();
-
-  const sc = s.scanners || [];
-  document.getElementById("scanners").innerHTML = sc.length
-    ? `<div class="card" style="padding:6px 16px"><table>
-       <tr><th></th><th>scanner</th><th>model</th><th>last run</th><th>looks for</th><th></th></tr>` +
-      sc.map(x => `<tr>
-        <td><div class="toggle ${x.enabled ? "on" : ""}" onclick="this.classList.toggle('on'); api({action:'scanner_toggle',name:'${esc(x.name)}'}, '${esc(x.name)} ${x.enabled ? "disabled" : "enabled"}')"></div></td>
-        <td>${esc(x.name)}${x.source && x.source !== "built-in" ? ` <span class="kind">${esc(x.source)}</span>` : ""}${x.queued_next ? ' <span class="kind warn">next</span>' : ""}</td>
-        <td>${x.model ? `${esc(x.model)}${x.effort ? ` <span class="kind">${esc(x.effort)}</span>` : ""}` : "—"}</td>
-        <td class="${x.enabled && x.last_run && (now - x.last_run) > 604800 ? "warn" : "dim"}">${x.last_run ? fmtDur(now - x.last_run) + " ago" + (x.last_filed != null ? ` · <span class="${x.last_filed > 0 ? "ok" : ""}">${x.last_filed} filed</span>` : "") : "never"}${x.interval ? ` <span class="kind">every ≥${esc(x.interval)}</span>` : ""}${x.last_focus ? `<br><span class="kind">focus: ${esc(x.last_focus)}</span>` : ""}</td>
-        <td class="dim">${esc(x.desc || "custom scanner")}</td>
-        <td><button onclick="api({action:'scanner_run_next',name:'${esc(x.name)}'}, '${esc(x.name)} queued as next refill')">Run next</button>
-            <button onclick="api({action:'scanner_run_now',name:'${esc(x.name)}'}, '${esc(x.name)} launching now — bypasses the pace line (uses quota)')">Run now</button></td>
-      </tr>`).join("") + `</table>
-      <div class="row" style="padding:10px 0 12px"><span class="dim">a scanner = one .md file — built-ins ship with issue-pilot, your own in <b>&lt;working-dir&gt;/scanners/</b> override them; enabled ones rotate strictly, one per refill</span></div></div>`
-    : `<div class="empty">no scanners resolved</div>`;
-
-  const res = s.resources;
-  const diskGb = res && res.disk_free_mb ? res.disk_free_mb / 1024 : null;
-  document.getElementById("resources").innerHTML = (res && res.budget > 0)
-    ? `server resource budget: ${res.budget} workers (load ${esc(res.load5)} of ${res.cores} cores, ${(res.mem_mb/1024).toFixed(0)} GB RAM free` +
-      (diskGb != null ? `, <span class="${diskGb < 10 ? "bad" : diskGb < 20 ? "warn" : ""}">${diskGb.toFixed(0)} GB disk free${diskGb < 10 ? " ⚠" : ""}</span>` : "") +
-      `) — lanes are capped by what's left of this budget`
-    : "";
-
-  const w = s.workers || [];
-  document.getElementById("workers").innerHTML = w.length
-    ? "<table><tr><th>account</th><th>role</th><th>pid</th><th>running for</th></tr>" +
-      w.map(p => `<tr><td>${esc(p.account)}</td><td>${p.role === "lane batch" ? esc(p.role) : `<span class="kind">${esc(p.role || "agent")}</span>`}</td><td>${p.pid}</td><td>${fmtDur(p.uptime_secs)}</td></tr>`).join("") + "</table>"
-    : `<div class="empty">no agent sessions running</div>`;
-
-  const c = s.claimed || [];
-  document.getElementById("claimed").innerHTML = c.length
-    ? "<table>" + c.map(i => `<tr><td><a href="${esc(i.url)}">#${i.number}</a></td><td>${esc(i.title)}</td></tr>`).join("") + "</table>"
-    : `<div class="empty">nothing claimed</div>`;
-
-  const p = s.recent_prs || [];
-  document.getElementById("prs").innerHTML = p.length
-    ? "<table>" + p.map(x => `<tr><td><a href="${esc(x.url)}">#${x.number}</a></td><td>${esc(x.title)}</td><td>${fmtDur(now - Math.floor(new Date(x.createdAt)/1000))} ago</td></tr>`).join("") + "</table>"
-    : `<div class="empty">none</div>`;
+    </div>`; }).join("");
+  const resting = (S.accounts || []).filter(a => a.used_pct != null && a.resets_at &&
+    a.used_pct > Math.max(0, Math.min(100, 100 * (1 - (a.resets_at - NOW)/WEEK)))).length;
+  return `
+    <div class="crumb">Accounts · subscription pace</div>
+    <div class="headline">${(S.accounts||[]).length} subscription${(S.accounts||[]).length === 1 ? "" : "s"} paced across the billing period — lanes rest when a subscription runs ahead.</div>
+    <div class="now"><span class="pulse" style="background:${resting > 0 ? "var(--warn)" : "var(--accent)"}"></span>Right now: ${resting > 0 ? `${resting} account${resting === 1 ? " is" : "s are"} ahead of pace and resting` : "everyone is on or behind pace"}</div>
+    ${previewBox("Nothing to change here — pace targets come from each plan's billing period. The white tick on each bar is the ideal-pace line.")}
+    <div class="section"><h3>Subscriptions</h3><div class="rows">${rows || `<div class="row"><span class="sub">no accounts configured</span></div>`}</div></div>`;
 }
-refresh(); setInterval(refresh, 60000);
+
+function needsPane() {
+  const r = S.refill || {};
+  const list = r.blocked_list || [];
+  const rows = list.map(b => `
+    <div class="row">
+      <a class="lbl" style="color:var(--warn);flex:none" href="${REPO}/issues/${encodeURIComponent(b.number)}" target="_blank" rel="noopener">#${esc(b.number)}</a>
+      <span class="grow" style="font-size:13.5px">${esc(b.title)}</span>
+    </div>`).join("");
+  return `
+    <div class="crumb" style="color:var(--warn)">Needs you · blocked work</div>
+    <div class="headline">${r.blocked_issues ?? "–"} issue${r.blocked_issues === 1 ? "" : "s"} the fleet can't move without you.</div>
+    <div class="now">These are parked — no worker will touch them until you unblock or close them on GitHub.</div>
+    <div class="section"><div class="rows">${rows || `<div class="row"><span class="sub">${r.blocked_list ? "nothing blocked" : "–"}</span></div>`}</div>
+      <p class="sub" style="margin-top:10px"><a href="${REPO}/issues?q=is%3Aissue+is%3Aopen+label%3Astatus%2Fblocked" target="_blank" rel="noopener">view all blocked issues on GitHub →</a></p></div>`;
+}
+
+const PANES = { scanner:scannerPane, workers:workersPane, release:releasePane,
+                campaign:campaignPane, tenant:tenantPane, accounts:accountsPane, needs:needsPane };
+
+function render() {
+  if (!S) return;
+  NOW = Math.floor(Date.now()/1000);
+  document.body.classList.toggle("paused", !!S.paused);
+  $("#banner").innerHTML = ((S.refill || {}).base_red && !UI.bannerGone) ? `
+    <div class="banner">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8L15 13.8H1L8 1.8z"/><path d="M8 6.5v3.2"/></svg>
+      <span>dev branch is RED — every lane throttled to 1 worker until the base fix lands</span>
+      <button class="x" data-act="dismissBanner" aria-label="Dismiss">×</button>
+    </div>` : "";
+  renderRail();
+  $("#pane").innerHTML = PANES[UI.view]();
+  const res = S.resources || {};
+  const disk = res.disk_free_mb != null ? (res.disk_free_mb/1024).toFixed(0) + " GB disk free" : null;
+  $("#foot").innerHTML =
+    `<span>Server: ${res.budget != null ? `budget ${esc(res.budget)} workers` : "–"} · load ${dash(res.load5)} of ${dash(res.cores)} cores · ${res.mem_mb != null ? (res.mem_mb/1024).toFixed(0) + " GB RAM free" : "–"}${disk ? " · " + disk : ""}</span>
+     <span style="opacity:.4">|</span>
+     <span>dispatcher</span><span class="dot sm ${S.dispatch === "active" && !S.paused ? "run" : ""}"></span>
+     <span>${esc(S.dispatch ?? "–")}${S.paused ? " (paused)" : ""} · refreshed ${ago(S.generated_at)}</span>`;
+}
+
+/* ---------- fetch loop ---------- */
+async function refresh() {
+  try { S = await (await fetch("status.json", { cache:"no-store" })).json(); }
+  catch { $("#pane").innerHTML = `<div class="crumb">status.json unavailable</div>`; return; }
+  // don't repaint under an open popover or while typing a goal
+  if ($("#pop").classList.contains("open") || document.activeElement?.tagName === "TEXTAREA") return;
+  render();
+}
+
+/* ---------- popover ---------- */
+const pop = $("#pop");
+let popArg = null;
+function openPop(btn) {
+  popArg = JSON.parse(btn.dataset.arg);
+  const cur = btn.dataset.cur;
+  const groups = POPS[btn.dataset.pop](isNaN(cur) ? cur : Number(cur));
+  pop.innerHTML = groups.map(g =>
+    (g.grp ? `<div class="grp">${g.grp}</div>` : "") +
+    g.items.map(o => `<button class="opt${String(o.v) === cur ? " cur" : ""}" data-v="${escA(o.v)}">
+      <span>${esc(o.label)}</span><span class="tick">✓</span></button>`).join("")
+  ).join("");
+  const r = btn.getBoundingClientRect();
+  pop.classList.add("open");
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pw - 12)) + "px";
+  pop.style.top = (r.bottom + 6 + ph > innerHeight - 12 ? r.top - ph - 6 : r.bottom + 6) + "px";
+}
+function closePop() { pop.classList.remove("open"); popArg = null; }
+pop.addEventListener("click", e => {
+  const opt = e.target.closest(".opt"); if (!opt) return;
+  let v = opt.dataset.v; if (/^\d+$/.test(v)) v = Number(v);
+  const arg = popArg; closePop();
+  APPLY[arg.k](arg, v);
+});
+
+/* ---------- actions ---------- */
+document.addEventListener("click", e => {
+  const chipBtn = e.target.closest(".chip[data-pop]");
+  if (chipBtn) { openPop(chipBtn); e.stopPropagation(); return; }
+  if (!e.target.closest(".pop")) closePop();
+
+  const railBtn = e.target.closest("[data-view]");
+  if (railBtn) { UI.view = railBtn.dataset.view; UI.confirmAct = null; render(); return; }
+
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const a = el.dataset.act, name = el.dataset.name;
+  const needConfirm = id => { if (UI.confirmAct === id) { UI.confirmAct = null; return true; } UI.confirmAct = id; render(); return false; };
+
+  if (a === "masterPause") api({ action: S.paused ? "system_resume" : "system_pause" },
+      S.paused ? "system started — lanes resume within a minute" : "system paused — scanning, pacing and batches stop");
+  else if (a === "dismissBanner") { UI.bannerGone = true; render(); }
+  else if (a === "scanToggle") { const x = (S.scanners||[]).find(s => s.name === name);
+    api({ action:"scanner_toggle", name }, `${name} ${x && x.enabled ? "removed from" : "back in"} the rotation`); }
+  else if (a === "runNext") api({ action:"scanner_run_next", name }, `${name} queued for the next natural slot`);
+  else if (a === "runNow") api({ action:"scanner_run_now", name }, `${name} launching now — bypasses pacing (uses quota)`);
+  else if (a === "role") { const r = el.dataset.role;
+    api({ action:"claude_role_toggle", role:r },
+        S.claude_roles[r] ? `Claude will not ${r === "issues" ? "take new issue batches" : r === "scanner" ? "run scans" : "run promotion rounds"}`
+                          : `Claude is back on ${r === "promote" ? "promotion" : r}`); }
+  else if (a === "toggleProcs") { UI.procsOpen = !UI.procsOpen; render(); }
+  else if (a === "promote") { if (needConfirm("promote"))
+    api({ action:"promote_now" }, "promotion launched — dev → staging → main"); }
+  else if (a === "genPreview") api({ action:"announce_preview" }, "generating preview — appears here in ~1 min");
+  else if (a === "toggleNote") { UI.noteOpen = !UI.noteOpen; render(); }
+  else if (a === "postNote") { if (needConfirm("postNote"))
+    api({ action:"announce_now" }, "posting the note — watch this row"); }
+  else if (a === "toggleGoal") { UI.goalOpen = !UI.goalOpen; render(); }
+  else if (a === "toggleAssess") { UI.assessOpen = !UI.assessOpen; render(); }
+  else if (a === "pauseCampaign") api({ action: el.dataset.paused ? "campaign_resume" : "campaign_pause" },
+      el.dataset.paused ? "campaign resumed" : "campaign paused — no more checks until you resume");
+  else if (a === "doneCampaign") api({ action:"campaign_done" }, "campaign archived");
+  else if (a === "newCampaign") { UI.newCampOpen = true; render(); }
+  else if (a === "cancelCampaign") { UI.newCampOpen = false; render(); }
+  else if (a === "startCampaign") {
+    const goal = ($("#goalText")?.value ?? "").trim();
+    if (goal.length < 10) return toast("write the goal first (10+ chars)", true);
+    if (goal.length > 2000) return toast("goal too long (max 2000 chars)", true);
+    UI.newCampOpen = false;
+    api({ action:"campaign_set", goal }, "campaign set — first gap analysis on the next tick");
+  }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePop(); });
+
+refresh(); setInterval(refresh, 20000);
 </script>
+</body>
+</html>
