@@ -3,6 +3,8 @@ Description=issue-pilot: status page + control API
 After=network-online.target
 
 [Service]
+# panel-launched runs (Promote now, Run now) must survive a webserver restart
+KillMode=process
 # Bind to a private interface (VPN/Tailscale IP) — the page exposes usage data and
 # the API changes configuration.
 Environment=ISSUE_PILOT_HOME=/opt/issue-pilot
