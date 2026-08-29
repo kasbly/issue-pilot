@@ -11,6 +11,9 @@ Actions (POST /api/action, JSON body {"action": ..., ...}):
                             the queue threshold and the Claude pace gate (one run)
   claude_role_toggle {role}  allow/forbid Claude for: issues | scanner | promote
   announce_preview / announce_now   generate the release note (dry run) / post it
+  scanner_model    {name, model}   per-dim scanner model (SCANNER_MODEL_<dim>)
+  scanner_effort   {name, effort}  per-dim scanner effort
+  setting          {key, value}    guarded conf edit (thresholds, batch, fallback)
   campaign_set     {goal}   start a new campaign
   campaign_pause / campaign_resume / campaign_done
 """
@@ -58,6 +61,31 @@ def write_rotation(items):
         text = re.sub(r"^SCANNER_ROTATION=.*$", new_line, text, count=1, flags=re.M)
     else:
         text += "\n" + new_line + "\n"
+    with open(CONF, "w") as f:
+        f.write(text)
+
+
+MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$")
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+# conf keys the panel may edit, with validation: (kind, lo, hi) for ints
+SETTINGS = {
+    "PROMOTE_AFTER_COMMITS": (1, 500),
+    "REFILL_THRESHOLD": (0, 200),
+    "BATCH_SIZE": (1, 50),
+    "PR_WIP_LIMIT": (1, 200),
+}
+
+
+def conf_set(key, value, quote=False):
+    """Set or append one KEY=value line in the conf (same pattern as lane_mode)."""
+    with open(CONF) as f:
+        text = f.read()
+    line = '%s="%s"' % (key, value) if quote else "%s=%s" % (key, value)
+    pat = r"^%s=.*$" % re.escape(key)
+    if re.search(pat, text, flags=re.M):
+        text = re.sub(pat, line, text, count=1, flags=re.M)
+    else:
+        text += "\n" + line + "\n"
     with open(CONF, "w") as f:
         f.write(text)
 
@@ -166,6 +194,38 @@ class Handler(SimpleHTTPRequestHandler):
                     kick("refill.sh", logfile="refill.log")
                 refresh_status()
                 return self._reply(200, {"ok": True, "next": name})
+            if action in ("scanner_model", "scanner_effort"):
+                name = req.get("name", "")
+                if not NAME_RE.match(name):
+                    return self._reply(400, {"error": "bad scanner name"})
+                dim_key = re.sub(r"[^A-Za-z0-9]", "_", name)
+                if action == "scanner_model":
+                    model = req.get("model", "")
+                    if not MODEL_RE.match(model):
+                        return self._reply(400, {"error": "bad model id"})
+                    conf_set("SCANNER_MODEL_%s" % dim_key, model, quote=True)
+                else:
+                    effort = req.get("effort", "")
+                    if effort not in EFFORTS:
+                        return self._reply(400, {"error": "bad effort"})
+                    conf_set("SCANNER_EFFORT_%s" % dim_key, effort, quote=True)
+                refresh_status()
+                return self._reply(200, {"ok": True})
+            if action == "setting":
+                key, value = req.get("key", ""), str(req.get("value", ""))
+                if key in SETTINGS:
+                    lo, hi = SETTINGS[key]
+                    if not value.isdigit() or not lo <= int(value) <= hi:
+                        return self._reply(400, {"error": "value out of range %d-%d" % (lo, hi)})
+                    conf_set(key, int(value))
+                elif key == "SCANNER_FALLBACK_MODEL" and MODEL_RE.match(value):
+                    conf_set(key, value, quote=True)
+                elif key == "SCANNER_FALLBACK_EFFORT" and value in EFFORTS:
+                    conf_set(key, value, quote=True)
+                else:
+                    return self._reply(400, {"error": "unknown or invalid setting"})
+                refresh_status()
+                return self._reply(200, {"ok": True})
             if action == "promote_now":
                 # manual production promotion: bypasses the commit threshold and
                 # the enabled gate (promote.sh --now); its flock makes a click
