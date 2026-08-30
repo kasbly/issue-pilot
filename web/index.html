@@ -393,7 +393,7 @@ function workersPane() {
       <span class="dot ${running ? "run" : ""}"></span>
       <div class="grow"><span class="lbl">${esc(l.label)}</span>
         <span class="sub mono" style="margin-left:8px">${l.model ? esc(l.model) + (l.effort ? ` (${esc(l.effort)})` : "") : "–"}</span>
-        <div class="sub">${batch}${l.workers_live != null ? ` · ${l.workers_live} of ${l.concurrency ?? "–"} workers live` : ""} · ${l.total_done ?? "–"} PRs all-time${tokBadge(laneRun)}</div></div>
+        <div class="sub">${batch}${l.workers_live != null ? ` · ${l.workers_live} of ${l.concurrency ?? "–"} workers live` : ""} · ${l.total_done ?? "–"} PRs all-time${tokBadge(laneRun)}</div>${l.disabled && l.disabled_reason ? `<div class="sub" style="color:var(--warn)">${esc(l.disabled_reason)}</div>` : ""}</div>
       ${chip(off ? "off" : l.mode === "always" ? "always on" : "follow my pace", "laneMode",
              { k:"laneMode", id:l.id, label:l.label, disabled: !!l.disabled }, true)}
     </div>`; }).join("");
