@@ -100,11 +100,13 @@ for round in $(seq 1 "$rounds"); do
     sleep "${PROMOTE_ROUND_WAIT:-600}"
     continue
   fi
+  round_start=$(date +%s)
   GH_REPO=$GH_REPO BASE_BRANCH="${BASE_BRANCH:-main}" \
     STAGING_BRANCH="$staging" PROD_BRANCH="$prod" \
     REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \
     bash -c "$PROMOTE_CMD" >>"$STATE_DIR/promotion.log" 2>&1 \
     || log "round $round: agent exited non-zero"
+  bash "$PKG_DIR/bin/cost-log.sh" promotion "round $round" "$round_start" "$PROMOTE_CMD" || true
   if promotion_done; then outcome="succeeded"; break; fi
   log "round $round: promotion not verified complete — waiting for promotion CI to conclude (cap $(( ${PROMOTE_ROUND_WAIT_MAX:-2700} / 60 ))m)"
   wait_for_round

@@ -26,6 +26,8 @@ while true; do
     fi
     wait "${lane_pid[$id]}" && st=0 || st=$?
     log "lane $id: batch finished status=$st"
+    bash "$PKG_DIR/bin/cost-log.sh" lane "$id" "$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)" \
+      "$(lane_get "$id" CMD)" "$(lane_get "$id" MODEL)/$(lane_get "$id" EFFORT)" || true
     [ "$st" -ne 0 ] && log "lane $id: non-zero exit — issues it claimed may need '$CLAIM_LABEL' removed to re-queue"
     unset "lane_pid[$id]"
   done

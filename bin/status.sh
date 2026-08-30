@@ -277,6 +277,34 @@ resources=$(jq -n --argjson budget "${rb_budget:-0}" --arg load "${rb_load:-0}" 
 
 sys_paused=false; paused && sys_paused=true
 
+# token spend (state/costs.jsonl, written by cost-log.sh after every run)
+spend=$(python3 - "$STATE_DIR/costs.jsonl" <<'PYEOF' 2>/dev/null || echo '{"today_tok":0,"by_kind":{},"by_engine":{},"days":[],"runs":[]}'
+import json, sys, time
+rows = []
+try:
+    for line in open(sys.argv[1]):
+        try: rows.append(json.loads(line))
+        except ValueError: pass
+except FileNotFoundError: pass
+now = time.time()
+day0 = time.mktime(time.localtime(now)[:3] + (0, 0, 0, 0, 0, -1))
+today = [r for r in rows if r.get("ts", 0) >= day0]
+def agg(rs, key):
+    d = {}
+    for r in rs: d[r.get(key) or "?"] = d.get(r.get(key) or "?", 0) + r.get("tok", 0)
+    return d
+days = []
+for k in range(6, -1, -1):
+    lo = day0 - k * 86400; hi = lo + 86400
+    days.append({"d": time.strftime("%m-%d", time.localtime(lo)),
+                 "tok": sum(r.get("tok", 0) for r in rows if lo <= r.get("ts", 0) < hi)})
+print(json.dumps({
+    "today_tok": sum(r.get("tok", 0) for r in today),
+    "by_kind": agg(today, "kind"), "by_engine": agg(today, "engine"),
+    "days": days, "runs": rows[-14:][::-1]}, separators=(",", ":")))
+PYEOF
+)
+
 # panel role switches: which loops may bill the Claude accounts
 cr_i=true; [ -f "$STATE_DIR/claude-role-issues.disabled" ] && cr_i=false
 cr_s=true; [ -f "$STATE_DIR/claude-role-scanner.disabled" ] && cr_s=false
@@ -291,10 +319,10 @@ join_json "${acc_rows[@]}" | jq \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
-  --argjson announce "$announce" --argjson claude_roles "$claude_roles" \
+  --argjson announce "$announce" --argjson claude_roles "$claude_roles" --argjson spend "$spend" \
   --argjson scanners "$(join_json "${scan_rows[@]}")" --argjson campaign "$campaign" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, paused:$paused, accounts:., lanes:$lanes, workers:$workers,
     resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
-    announce:$announce, claude_roles:$claude_roles, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
+    announce:$announce, claude_roles:$claude_roles, spend:$spend, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json

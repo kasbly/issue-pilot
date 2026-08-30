@@ -187,7 +187,9 @@ fi
 [ -n "${SCANNER_DIMENSION:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/last-scanner"
 [ -n "$SCANNER_FOCUS" ] && echo "$SCANNER_FOCUS" >"$STATE_DIR/last-focus"
 scan_start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+scan_start=$(date +%s)
 bash -c "$RUN_CMD"
+bash "$PKG_DIR/bin/cost-log.sh" scanner "${SCANNER_DIMENSION:-scan}" "$scan_start" "$RUN_CMD" "$SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT" || true
 # record when this dimension last ran and how many issues that run filed
 if [ -n "${SCANNER_DIMENSION:-}" ]; then
   filed=$(gh issue list -R "$GH_REPO" --state all --limit 100 \
