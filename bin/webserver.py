@@ -265,6 +265,10 @@ class Handler(SimpleHTTPRequestHandler):
                     if not value.isdigit() or not lo <= int(value) <= hi:
                         return self._reply(400, {"error": "value out of range %d-%d" % (lo, hi)})
                     conf_set(key, int(value))
+                elif key == "PROMOTE_MODEL" and MODEL_RE.match(value):
+                    conf_set(key, value, quote=True)
+                elif key == "PROMOTE_EFFORT" and value in EFFORTS:
+                    conf_set(key, value, quote=True)
                 elif key == "SCANNER_FALLBACK_MODEL" and MODEL_RE.match(value):
                     conf_set(key, value, quote=True)
                 elif key == "SCANNER_FALLBACK_EFFORT" and value in EFFORTS:

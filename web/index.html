@@ -457,7 +457,7 @@ function releasePane() {
   const confirming = UI.confirmAct === "promote";
   return `
     <div class="crumb">Release · production promotion</div>
-    <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
+    <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting · using ${chip(p.model, "model", { k:"setting", key:"PROMOTE_MODEL" })} (${chip(p.effort, "effort", { k:"setting", key:"PROMOTE_EFFORT" })})${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
     <div class="now"><span class="pulse" style="background:${p.active ? "var(--gold)" : "var(--accent)"}"></span>Right now: ${S.paused ? "paused by you" : p.active ? "PROMOTING — dev → staging → main" : p.waiting >= p.threshold ? "threshold reached — next hourly check promotes" : "armed, counting commits"}${tokBadge(lastRunOf("promotion"))}</div>
     <div class="status-line">${p.last ? `last release: <span class="${p.last.outcome === "succeeded" ? "ok" : "warn"}">${esc(p.last.outcome)}</span> · ${ago(p.last.ts)}` : "no release recorded yet"}</div>
     <div class="bar wide"><i style="width:${pct}%;background:${p.active ? "var(--gold)" : "var(--accent)"}"></i></div>

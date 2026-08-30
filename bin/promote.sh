@@ -101,6 +101,7 @@ for round in $(seq 1 "$rounds"); do
     continue
   fi
   round_start=$(date +%s)
+  PROMOTE_MODEL="${PROMOTE_MODEL:-}" PROMOTE_EFFORT="${PROMOTE_EFFORT:-}" \
   GH_REPO=$GH_REPO BASE_BRANCH="${BASE_BRANCH:-main}" \
     STAGING_BRANCH="$staging" PROD_BRANCH="$prod" \
     REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" \

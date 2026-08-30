@@ -196,7 +196,11 @@ PROMOTE_ENABLED=false                # hourly timer acts only when true (and AUT
 PROMOTE_AFTER_COMMITS=100            # promote once this many commits wait BASE→STAGING
 STAGING_BRANCH="staging"
 PROD_BRANCH="main"
-# Use your best model here — promotions are rare and high-stakes:
+# Use your best model here — promotions are rare and high-stakes. Reference
+# $PROMOTE_MODEL / $PROMOTE_EFFORT in the command to make them editable from
+# the panel's Release view:
+#PROMOTE_MODEL="opus"
+#PROMOTE_EFFORT="max"
 PROMOTE_CMD='claude -p "$(envsubst < examples/promote.md)" --model opus --effort max --dangerously-skip-permissions'
 # Optional deterministic post-release check; non-zero exit marks the release
 # "merged, runtime verification FAILED" instead of succeeded:
