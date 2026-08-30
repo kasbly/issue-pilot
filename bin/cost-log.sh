@@ -12,6 +12,7 @@
 . "$(dirname "$0")/lib.sh"
 
 kind="${1:?}" detail="${2:-}" start="${3:?}" cmd="${4:-}" model="${5:-}"
+[ -n "$model" ] || model=$(grep -o -E "(-m|--model) [A-Za-z0-9._/-]+" <<<"$cmd" | head -1 | cut -d" " -f2 || true)
 end=$(date +%s)
 [ "$start" -gt 0 ] 2>/dev/null && [ "$end" -ge "$start" ] || exit 0
 
