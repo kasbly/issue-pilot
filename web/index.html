@@ -144,6 +144,28 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .pop .opt .tick{color:var(--accent);visibility:hidden}
 .pop .opt.cur .tick{visibility:visible}
 
+/* prompt modal */
+.ghost{background:none;border:none;color:var(--dim);cursor:pointer;padding:3px 4px;display:flex;border-radius:6px;flex:none}
+.ghost:hover{color:var(--accent);background:rgba(62,201,142,.1)}
+.mback{position:fixed;inset:0;z-index:70;background:rgba(8,12,20,.72);display:flex;align-items:center;justify-content:center;padding:30px 20px}
+.mbox{width:760px;max-width:100%;max-height:calc(100vh - 60px);background:var(--card);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.mhead{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 0}
+.mhead h2{font-size:16px;font-weight:600;font-family:"JetBrains Mono",ui-monospace,monospace}
+.mhead .src{color:var(--dim);font-weight:400;font-size:13px}
+.mmeta{font:11.5px "JetBrains Mono",ui-monospace,monospace;color:var(--dim);margin-top:5px}
+.mx{margin-left:auto;background:none;border:none;color:var(--dim);font:18px "Sora",sans-serif;cursor:pointer;padding:0 4px;line-height:1}
+.mx:hover{color:var(--fg)}
+.tabs{display:flex;gap:6px;padding:14px 20px 0}
+.mbody{overflow:auto;padding:14px 20px 20px;margin-top:12px;border-top:1px solid var(--line)}
+.mbody pre{font:13px/1.65 "JetBrains Mono",ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;color:var(--fg)}
+.mbody .mnote{font-size:13px;color:var(--dim)}
+.mbody .cap{font:11.5px "JetBrains Mono",ui-monospace,monospace;color:var(--gold);margin-bottom:10px}
+.varchip{display:inline-block;font:11.5px "JetBrains Mono",ui-monospace,monospace;color:var(--gold);background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.4);border-radius:999px;padding:0 7px;line-height:1.5}
+@media (max-width:700px){
+  .mback{padding:0}
+  .mbox{width:100%;height:100%;max-height:100%;border-radius:0;border:none}
+}
+
 #toast{position:fixed;bottom:58px;left:50%;transform:translate(-50%,16px);background:#182238;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:10px 18px;font-size:13.5px;box-shadow:0 12px 34px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.22s;z-index:60;display:flex;gap:9px;align-items:center;max-width:90vw}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 #toast svg{color:var(--accent);flex:none}
@@ -180,6 +202,7 @@ body.paused .headline,body.paused .now{opacity:.55}
 </div>
 <footer class="footbar"><div class="in" id="foot"></div></footer>
 <div class="pop" id="pop"></div>
+<div id="modal"></div>
 <div id="toast"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5l3.5 3.5 7.5-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="toastMsg"></span></div>
 
 <script>
@@ -188,7 +211,7 @@ const WEEK = 604800, REPO = "https://github.com/kasbly/kasbly";
 let S = null, NOW = 0;
 const UI = { view:"scanner", confirmAct:null, procsOpen:false, noteOpen:false,
              newCampOpen:false, assessOpen:false, goalOpen:false, bannerGone:false,
-             spendFilter:"All" };
+             spendFilter:"All", promptName:null, promptTab:"tmpl", prompt:null };
 
 /* ---------- helpers (esc/fmtDur kept from the previous page) ---------- */
 const fmtDur = s => {
@@ -352,6 +375,7 @@ function scannerPane() {
         ].filter(Boolean).join(" · ")}</div></div>
       ${chip(x.model, "model",  { k:"scanModel",  name:x.name })}
       ${chip(x.effort, "effort", { k:"scanEffort", name:x.name })}
+      <button class="ghost" data-act="viewPrompt" data-name="${escA(x.name)}" title="view prompt" aria-label="View ${escA(x.name)} prompt"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13"/><path d="M6 8h4M6 10.5h4"/></svg></button>
       <button class="btn small" data-act="runNext" data-name="${escA(x.name)}">Run next</button>
       <button class="btn small" data-act="runNow" data-name="${escA(x.name)}">Run now</button>
     </div>`).join("");
@@ -622,6 +646,54 @@ const PANES = { scanner:scannerPane, workers:workersPane, release:releasePane,
                 campaign:campaignPane, tenant:tenantPane, spend:spendPane,
                 accounts:accountsPane, needs:needsPane };
 
+/* ---------- prompt modal ---------- */
+const highlightVars = t => esc(t).replace(/\$\{?[A-Z_][A-Z0-9_]*\}?/g, m => `<span class="varchip">${m}</span>`);
+/* ponytail: sent snapshots start with "<!-- sent <iso> · <model>/<effort> · <file> -->" — parse on raw text, insert only escaped pieces */
+function sentParts(sent) {
+  const m = sent.match(/^<!--\s*sent\s+(\S+)\s*·\s*(\S+)\s*·\s*(\S+)\s*-->\r?\n?/);
+  if (!m) return { cap: null, body: sent };
+  const when = m[1].replace("T", " ").replace(/(:\d\d):\d\d(?:\.\d+)?Z$/, "$1 UTC");
+  return { cap: `captured ${when} · ${m[2]}`, body: sent.slice(m[0].length) };
+}
+function promptModal() {
+  const name = UI.promptName;
+  if (name == null) return "";
+  const p = UI.prompt, sc = (S.scanners || []).find(x => x.name === name) || {};
+  const model = (p && p.model) || sc.model, effort = (p && p.effort) || sc.effort;
+  let body;
+  if (!p) body = `<div class="mnote">loading…</div>`;
+  else if (p.error) body = `<div class="mnote">couldn't load prompt — API unreachable</div>`;
+  else if (UI.promptTab === "tmpl")
+    body = p.template != null ? `<pre>${highlightVars(p.template)}</pre>` : `<div class="mnote">template file not found</div>`;
+  else if (p.sent == null)
+    body = `<div class="mnote">no run captured yet — the snapshot is taken at the next launch of this scanner.</div>`;
+  else {
+    const { cap, body: txt } = sentParts(p.sent);
+    body = `${cap ? `<div class="cap">${esc(cap)}</div>` : ""}<pre>${esc(txt)}</pre>`;
+  }
+  return `<div class="mback">
+    <div class="mbox">
+      <div class="mhead">
+        <div><h2>${esc(name)} — prompt <span class="src">· from ${esc((p && p.file) || "…")}</span></h2>
+          <div class="mmeta">rendered fresh at every launch · sent to ${esc(model ?? "–")}${effort ? ` (${esc(effort)})` : ""}</div></div>
+        <button class="mx" data-act="closeModal" aria-label="Close">×</button>
+      </div>
+      <div class="tabs">
+        <button class="btn small${UI.promptTab === "tmpl" ? " sel" : ""}" data-act="ptab" data-tab="tmpl">Template</button>
+        <button class="btn small${UI.promptTab === "sent" ? " sel" : ""}" data-act="ptab" data-tab="sent">As sent last run</button>
+      </div>
+      <div class="mbody">${body}</div>
+    </div></div>`;
+}
+async function openPrompt(name) {
+  UI.promptName = name; UI.promptTab = "tmpl"; UI.prompt = null; render();
+  let p;
+  try { p = await (await fetch("/api/prompt?name=" + encodeURIComponent(name))).json(); }
+  catch { p = { error: true }; }
+  if (UI.promptName === name) { UI.prompt = p; render(); }
+}
+function closePrompt() { UI.promptName = null; UI.prompt = null; render(); }
+
 function render() {
   if (!S) return;
   NOW = Math.floor(Date.now()/1000);
@@ -634,6 +706,7 @@ function render() {
     </div>` : "";
   renderRail();
   $("#pane").innerHTML = PANES[UI.view]();
+  $("#modal").innerHTML = promptModal();
   const res = S.resources || {};
   const disk = res.disk_free_mb != null ? (res.disk_free_mb/1024).toFixed(0) + " GB disk free" : null;
   $("#foot").innerHTML =
@@ -647,8 +720,8 @@ function render() {
 async function refresh() {
   try { S = await (await fetch("status.json", { cache:"no-store" })).json(); }
   catch { $("#pane").innerHTML = `<div class="crumb">status.json unavailable</div>`; return; }
-  // don't repaint under an open popover or while typing a goal
-  if ($("#pop").classList.contains("open") || document.activeElement?.tagName === "TEXTAREA") return;
+  // don't repaint under an open popover, open modal, or while typing a goal
+  if ($("#pop").classList.contains("open") || UI.promptName != null || document.activeElement?.tagName === "TEXTAREA") return;
   render();
 }
 
@@ -680,6 +753,7 @@ pop.addEventListener("click", e => {
 
 /* ---------- actions ---------- */
 document.addEventListener("click", e => {
+  if (e.target.classList.contains("mback")) { closePrompt(); return; }
   const chipBtn = e.target.closest(".chip[data-pop]");
   if (chipBtn) { openPop(chipBtn); e.stopPropagation(); return; }
   if (!e.target.closest(".pop")) closePop();
@@ -697,6 +771,9 @@ document.addEventListener("click", e => {
   else if (a === "spendFilter") { UI.spendFilter = el.dataset.f; render(); }
   else if (a === "scanToggle") { const x = (S.scanners||[]).find(s => s.name === name);
     api({ action:"scanner_toggle", name }, `${name} ${x && x.enabled ? "removed from" : "back in"} the rotation`); }
+  else if (a === "viewPrompt") openPrompt(name);
+  else if (a === "ptab") { UI.promptTab = el.dataset.tab; render(); }
+  else if (a === "closeModal") closePrompt();
   else if (a === "runNext") api({ action:"scanner_run_next", name }, `${name} queued for the next natural slot`);
   else if (a === "runNow") api({ action:"scanner_run_now", name }, `${name} launching now — bypasses pacing (uses quota)`);
   else if (a === "role") { const r = el.dataset.role;
@@ -725,7 +802,10 @@ document.addEventListener("click", e => {
     api({ action:"campaign_set", goal }, "campaign set — first gap analysis on the next tick");
   }
 });
-document.addEventListener("keydown", e => { if (e.key === "Escape") closePop(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (UI.promptName != null) closePrompt(); else closePop();
+});
 
 refresh(); setInterval(refresh, 20000);
 </script>
