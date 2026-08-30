@@ -286,6 +286,8 @@ campaign=$(jq -n --arg cmodel "${c_model:-}" --arg ceffort "${c_effort:-}" --arg
   --argjson open "${c_open:-0}" --argjson closed "${c_closed:-0}" \
   --arg history "$(tail -3 "$CDIR/history.log" 2>/dev/null || true)" \
   '{goal:(if $goal=="" then null else $goal end), status:(if $status=="" then null else $status end),
+    model:(if $cmodel=="" then null else $cmodel end), effort:(if $ceffort=="" then null else $ceffort end),
+    engine:(if $ceng=="" then null else $ceng end),
     assessment:(if $assess=="" then null else $assess end), open:$open, closed:$closed,
     history:(if $history=="" then null else $history end)}')
 
