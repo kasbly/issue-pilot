@@ -274,6 +274,7 @@ function fallbackPair() {
 }
 const flat = a => [{ items: a.map(v => ({ v, label: String(v) })) }];
 const ENGINE_FAM = { grok: "Grok", claude: "Claude", codex: "Codex" };
+const famEngine = m => !m ? null : /^grok/.test(m) ? "grok" : /^gpt/.test(m) ? "codex" : "claude";
 const ENGINE_EFFORTS = { grok: ["low","medium","high","xhigh"], codex: ["low","medium","high","xhigh"], claude: ["low","medium","high","max"] };
 const POPS = {
   // arg.engine (when the command is pinned to one CLI) narrows the options to
@@ -401,7 +402,7 @@ function scannerPane() {
     <div class="section"><h3>Dimensions</h3><div class="rows">${rows || `<div class="row"><span class="sub">no scanners resolved</span></div>`}</div>
       <p class="sub" style="margin-top:10px;color:var(--dim)">a scanner = one .md file — your own in &lt;working-dir&gt;/scanners/ override built-ins; enabled ones rotate strictly, one per refill</p></div>
     <div class="section"><h3>Fallback</h3>
-      <p style="font-size:14.5px">When Claude rests: ${chip(fallbackPair()[0], "model", { k:"setting", key:"SCANNER_FALLBACK_MODEL" })} (${chip(fallbackPair()[1], "effort", { k:"setting", key:"SCANNER_FALLBACK_EFFORT" })}).</p>
+      <p style="font-size:14.5px">When Claude rests: ${chip(fallbackPair()[0], "model", { k:"setting", key:"SCANNER_FALLBACK_MODEL", engine:(S.refill||{}).fallback_engine })} (${chip(fallbackPair()[1], "effort", { k:"setting", key:"SCANNER_FALLBACK_EFFORT", engine:(S.refill||{}).fallback_engine || famEngine(fallbackPair()[0]) })}).</p>
     </div>`;
 }
 
@@ -461,7 +462,7 @@ function releasePane() {
   const confirming = UI.confirmAct === "promote";
   return `
     <div class="crumb">Release · production promotion</div>
-    <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting · using ${chip(p.model, "model", { k:"setting", key:"PROMOTE_MODEL", engine:p.engine })} (${chip(p.effort, "effort", { k:"setting", key:"PROMOTE_EFFORT", engine:p.engine })})${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
+    <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting · using ${chip(p.model, "model", { k:"setting", key:"PROMOTE_MODEL", engine:p.engine })} (${chip(p.effort, "effort", { k:"setting", key:"PROMOTE_EFFORT", engine:p.engine || famEngine(p.model) })})${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
     <div class="now"><span class="pulse" style="background:${p.active ? "var(--gold)" : "var(--accent)"}"></span>Right now: ${S.paused ? "paused by you" : p.active ? "PROMOTING — dev → staging → main" : p.waiting >= p.threshold ? "threshold reached — next hourly check promotes" : "armed, counting commits"}${tokBadge(lastRunOf("promotion"))}</div>
     <div class="status-line">${p.last ? `last release: <span class="${p.last.outcome === "succeeded" ? "ok" : "warn"}">${esc(p.last.outcome)}</span> · ${ago(p.last.ts)}` : "no release recorded yet"}</div>
     <div class="bar wide"><i style="width:${pct}%;background:${p.active ? "var(--gold)" : "var(--accent)"}"></i></div>
@@ -509,6 +510,7 @@ function campaignPane() {
   return `
     <div class="crumb">Campaign · goal loop</div>
     <div class="headline">${goalLine}${c.goal.length > 300 ? `<button class="disc${UI.goalOpen ? " open" : ""}" data-act="toggleGoal" style="margin-left:6px"><span class="car">▸</span>${UI.goalOpen ? "less" : "full goal"}</button>` : ""}</div>
+    <div class="status-line">runs on ${chip(c.model, "model", { k:"setting", key:"CAMPAIGN_MODEL", engine:c.engine })} (${chip(c.effort, "effort", { k:"setting", key:"CAMPAIGN_EFFORT", engine:c.engine || famEngine(c.model) })}) · checks every 2h</div>
     <div class="now"><span class="pulse"></span>Right now: ${S.paused || paused ? "paused" : `active · ${c.closed ?? "–"} done / ${c.open ?? "–"} open gaps`}${tokBadge(lastRunOf("campaign"))}</div>
     ${previewBox(preview)}
     ${c.assessment ? `<div class="section"><button class="disc${UI.assessOpen ? " open" : ""}" data-act="toggleAssess"><span class="car">▸</span>latest assessment</button>

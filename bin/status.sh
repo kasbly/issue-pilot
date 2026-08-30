@@ -116,11 +116,13 @@ refill=$(jq -n --argjson ready "$ready_count" --argjson threshold "${REFILL_THRE
   --argjson base_red "$b_red" --argjson batch "${BATCH_SIZE:-25}" --argjson next "$next_refill" \
   --arg model "${SCANNER_MODEL:-}" --arg effort "${SCANNER_EFFORT:-}" \
   --arg fb "$([ -n "${SCANNER_FALLBACK_CMD:-}" ] && echo "${SCANNER_FALLBACK_MODEL:-}${SCANNER_FALLBACK_EFFORT:+ (${SCANNER_FALLBACK_EFFORT})}")" \
+  --arg fbeng "$(sniff_engine "${SCANNER_FALLBACK_CMD:-}")" \
   --argjson last_ts "${rl_ts:-0}" --arg last_action "${rl_action:-}" --arg last_detail "${rl_detail:-}" \
   '{ready:$ready, threshold:$threshold, open_issues:$open, blocked_issues:$blocked, blocked_list:$blocked_list,
     base_red:$base_red, batch_size:$batch, next_run:(if $next==0 then null else $next end),
     scanner_model:(if $model=="" then null else $model end), scanner_effort:(if $effort=="" then null else $effort end),
     scanner_fallback:(if $fb=="" then null else $fb end),
+    fallback_engine:(if $fbeng=="" then null else $fbeng end),
     last:(if $last_ts==0 then null else {ts:$last_ts, action:$last_action, detail:$last_detail} end)}')
 
 # merged-PR throughput (server-local calendar days; mergedAt is UTC — close enough for a scoreboard)
@@ -162,7 +164,14 @@ pw_count=$(gh api "repos/$GH_REPO/compare/${STAGING_BRANCH:-staging}...${BASE_BR
 read -r pl_ts pl_outcome 2>/dev/null <"$STATE_DIR/promotion-last" || { pl_ts=0; pl_outcome=""; }
 p_active=false; [ -f "$STATE_DIR/promotion-active" ] && p_active=true
 # model/effort: the PROMOTE_MODEL/PROMOTE_EFFORT conf vars, else parsed out of PROMOTE_CMD
-case "${PROMOTE_CMD:-}" in *grok*) p_eng=grok ;; *codex*) p_eng=codex ;; *claude*) p_eng=claude ;; *) p_eng="" ;; esac
+# engine of a command: named engine when the command is pinned to ONE CLI, empty
+# when it dispatches by model prefix (mentions several engines)
+sniff_engine() {
+  local c="$1" n=0 e="" k
+  for k in grok codex claude; do case "$c" in *"$k"*) n=$((n+1)); e=$k ;; esac; done
+  [ "$n" -eq 1 ] && echo "$e"
+}
+p_eng=$(sniff_engine "${PROMOTE_CMD:-}")
 p_model="${PROMOTE_MODEL:-$(grep -o -E '(-m|--model) [A-Za-z0-9._/-]+' <<<"${PROMOTE_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
 p_effort="${PROMOTE_EFFORT:-$(grep -o -E '(--reasoning-effort|--effort) [a-z]+' <<<"${PROMOTE_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
 promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "${pw_count:-0}" \
@@ -269,7 +278,10 @@ if [ -n "$c_goal" ]; then
     c_closed=$(gh issue list -R "$GH_REPO" --state closed --label "${CAMPAIGN_LABEL:-campaign}" --limit 200 --json number --jq length 2>/dev/null || echo 0)
   fi
 fi
-campaign=$(jq -n --arg goal "$c_goal" --arg status "$c_status" --arg assess "$c_assess" \
+c_eng=$(sniff_engine "${CAMPAIGN_CMD:-}")
+c_model="${CAMPAIGN_MODEL:-$(grep -o -E '(-m|--model) [A-Za-z0-9._/-]+' <<<"${CAMPAIGN_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
+c_effort="${CAMPAIGN_EFFORT:-$(grep -o -E '(--reasoning-effort|--effort) [a-z]+' <<<"${CAMPAIGN_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
+campaign=$(jq -n --arg cmodel "${c_model:-}" --arg ceffort "${c_effort:-}" --arg ceng "${c_eng:-}" --arg goal "$c_goal" --arg status "$c_status" --arg assess "$c_assess" \
   --argjson open "${c_open:-0}" --argjson closed "${c_closed:-0}" \
   --arg history "$(tail -3 "$CDIR/history.log" 2>/dev/null || true)" \
   '{goal:(if $goal=="" then null else $goal end), status:(if $status=="" then null else $status end),

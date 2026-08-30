@@ -69,7 +69,8 @@ case "${1:-status}" in
       pick_claude_account || { log "campaign tick deferred — next tick retries"; exit 0; }
     fi
     tick_start=$(date +%s)
-    bash -c "$CAMPAIGN_CMD" >>"$CDIR/campaign.log" 2>&1 || log "campaign agent exited non-zero"
+    CAMPAIGN_MODEL="${CAMPAIGN_MODEL:-}" CAMPAIGN_EFFORT="${CAMPAIGN_EFFORT:-}" \
+      bash -c "$CAMPAIGN_CMD" >>"$CDIR/campaign.log" 2>&1 || log "campaign agent exited non-zero"
     bash "$PKG_DIR/bin/cost-log.sh" campaign tick "$tick_start" "$CAMPAIGN_CMD" || true
 
     if [ -f "$CDIR/achieved" ]; then
