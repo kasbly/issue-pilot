@@ -26,7 +26,7 @@ case "$cmd" in
 esac
 
 python3 - "$engine" "$home" "$start" "$end" "$kind" "$detail" "$model" "$STATE_DIR/costs.jsonl" <<'PY' || true
-import glob, json, os, sys, time
+import calendar, glob, json, os, sys, time
 eng, home, start, end, kind, detail, model, out = sys.argv[1:9]
 start, end = int(start), int(end)
 i = cached = o = 0
@@ -69,7 +69,7 @@ try:
             try: d = json.loads(line)
             except ValueError: continue
             ts = d.get("ts", "")
-            try: t = time.mktime(time.strptime(ts[:19], "%Y-%m-%dT%H:%M:%S")) - time.timezone
+            try: t = calendar.timegm(time.strptime(ts[:19], "%Y-%m-%dT%H:%M:%S"))
             except ValueError: continue
             if not start <= t <= end + 60: continue
             c = d.get("ctx") or {}
