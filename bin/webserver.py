@@ -116,6 +116,37 @@ def refresh_status():
     kick("status.sh")
 
 
+def scanner_prompt(name):
+    """Template + last-sent prompt for one scanner dimension (read-only)."""
+    dim_key = re.sub(r"[^A-Za-z0-9]", "_", name)
+    conf = open(CONF).read()
+    # the file SCANNER_CMD actually renders (envsubst < FILE); else the library file
+    m = re.search(r"^SCANNER_CMD=.*?envsubst < ([^\s\");]+)", conf, flags=re.M)
+    path = None
+    if m:
+        path = m.group(1)
+        if not os.path.isabs(path):
+            path = os.path.join(HOME, path)
+    if not path or not os.path.isfile(path):
+        for base in (os.path.join(HOME, "scanners"), os.path.join(PKG, "scanners")):
+            cand = os.path.join(base, "%s.md" % name)
+            if os.path.isfile(cand):
+                path = cand
+                break
+    def confval(key, default=""):
+        mm = re.search(r'^%s="?([^"\n]*)"?$' % key, conf, flags=re.M)
+        return mm.group(1) if mm else default
+    model = confval("SCANNER_MODEL_%s" % dim_key) or confval("SCANNER_MODEL_DEFAULT") or confval("SCANNER_MODEL", "sonnet")
+    effort = confval("SCANNER_EFFORT_%s" % dim_key) or confval("SCANNER_EFFORT_DEFAULT") or confval("SCANNER_EFFORT", "high")
+    sent = None
+    sp = state_path("prompts", "%s.sent.md" % name)
+    if os.path.isfile(sp):
+        sent = open(sp, errors="replace").read()[:120000]
+    template = open(path, errors="replace").read()[:120000] if path and os.path.isfile(path) else None
+    return {"name": name, "file": os.path.basename(path) if path else None,
+            "model": model, "effort": effort, "template": template, "sent": sent}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=os.path.join(HOME, "web"), **kw)
@@ -130,6 +161,18 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path.startswith("/api/prompt"):
+            from urllib.parse import parse_qs, urlparse
+            name = (parse_qs(urlparse(self.path).query).get("name") or [""])[0]
+            if not NAME_RE.match(name):
+                return self._reply(400, {"error": "bad scanner name"})
+            try:
+                return self._reply(200, scanner_prompt(name))
+            except Exception as e:  # noqa: BLE001
+                return self._reply(500, {"error": str(e)})
+        return super().do_GET()
 
     def do_POST(self):
         if self.path != "/api/action":

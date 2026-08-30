@@ -188,6 +188,15 @@ fi
 [ -n "$SCANNER_FOCUS" ] && echo "$SCANNER_FOCUS" >"$STATE_DIR/last-focus"
 scan_start_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 scan_start=$(date +%s)
+# snapshot the exact prompt this run sends (same file, same env, same envsubst
+# the CMD itself performs) so the panel can show "as sent last run" byte-for-byte
+pf=$(grep -o 'envsubst < [^");]*' <<<"$RUN_CMD" | head -1 | sed 's/envsubst < //') || true
+pf="${pf:-${SCANNER_PROMPT_FILE:-}}"
+if [ -n "$pf" ] && [ -f "$pf" ]; then
+  mkdir -p "$STATE_DIR/prompts"
+  { printf '<!-- sent %s · %s · %s -->\n' "$scan_start_iso" "$run_via" "$pf"
+    envsubst <"$pf"; } >"$STATE_DIR/prompts/${SCANNER_DIMENSION:-scan}.sent.md" 2>/dev/null || true
+fi
 bash -c "$RUN_CMD"
 bash "$PKG_DIR/bin/cost-log.sh" scanner "${SCANNER_DIMENSION:-scan}" "$scan_start" "$run_via" "$SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT" || true
 # record when this dimension last ran and how many issues that run filed
