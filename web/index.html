@@ -121,6 +121,21 @@ textarea:focus{outline:none;border-color:var(--accent)}
 .bar.sm{display:inline-block;height:4px;width:72px;margin:0 6px 1px 0;vertical-align:middle;overflow:hidden}
 .bar.wide{max-width:720px;height:8px;overflow:hidden;margin-top:14px}
 
+/* spend */
+.machbar{display:flex;height:22px;border-radius:6px;overflow:hidden;border:1px solid var(--line);max-width:720px}
+.machbar i{display:block;height:100%;min-width:2px}
+.machleg{display:flex;gap:16px;flex-wrap:wrap;margin-top:9px;font:11.5px "JetBrains Mono",ui-monospace,monospace;color:var(--dim);max-width:720px}
+.machleg .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.machleg b{color:var(--fg);font-weight:500}
+.days{display:flex;gap:8px;align-items:flex-end;height:88px;max-width:440px;padding-top:30px}
+.days .d{flex:1;position:relative;background:rgba(62,201,142,.35);border-radius:3px 3px 0 0;cursor:default;min-height:6px}
+.days .d:hover,.days .d.cur{background:var(--accent)}
+.days .d::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#182238;border:1px solid var(--line);border-radius:7px;padding:4px 9px;font:11px "JetBrains Mono",ui-monospace,monospace;color:var(--fg);white-space:nowrap;opacity:0;pointer-events:none;transition:.12s;z-index:5}
+.days .d:hover::after{opacity:1}
+.fchips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.btn.sel{border-color:var(--accent);color:var(--accent)}
+.tokbadge{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;color:var(--dim);white-space:nowrap}
+
 .pop{position:fixed;z-index:50;background:#182238;border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.5);padding:8px;min-width:180px;display:none}
 .pop.open{display:block}
 .pop .grp{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);padding:7px 10px 3px}
@@ -172,7 +187,8 @@ body.paused .headline,body.paused .now{opacity:.55}
 const WEEK = 604800, REPO = "https://github.com/kasbly/kasbly";
 let S = null, NOW = 0;
 const UI = { view:"scanner", confirmAct:null, procsOpen:false, noteOpen:false,
-             newCampOpen:false, assessOpen:false, goalOpen:false, bannerGone:false };
+             newCampOpen:false, assessOpen:false, goalOpen:false, bannerGone:false,
+             spendFilter:"All" };
 
 /* ---------- helpers (esc/fmtDur kept from the previous page) ---------- */
 const fmtDur = s => {
@@ -180,6 +196,15 @@ const fmtDur = s => {
   const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60);
   return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
 };
+const fmt = n => {
+  if (n == null || !isFinite(n) || n <= 0) return "–";
+  if (n < 1000) return String(Math.round(n));
+  const [div, unit] = n < 1e6 ? [1e3, "k"] : [1e6, "M"];
+  return (Math.round(n / div * 10) / 10).toFixed(1).replace(/\.0$/, "") + unit;
+};
+const spendRuns = () => ((S || {}).spend || {}).runs || [];
+const lastRunOf = kind => spendRuns().find(r => r.kind === kind && r.tok > 0);
+const tokBadge = r => r ? ` <span class="tokbadge">· last run ${fmt(r.tok)} tok</span>` : "";
 const esc = t => { const e = document.createElement("span"); e.textContent = t ?? ""; return e.innerHTML; };
 const escA = t => esc(t).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 const ago = ts => ts ? fmtDur(NOW - ts) + " ago" : "–";
@@ -280,6 +305,9 @@ function railData() {
     { id:"campaign", nm:"Campaign", dot: camp.status === "active" ? "run" : "", st: camp.status || "none" },
     { id:"tenant", nm:"Tenant note", dot: ann.pending ? "warn" : "",
       st: !ann.enabled ? "off" : ann.pending ? "retry pending" : "idle" },
+    { id:"spend", nm:"Spend",
+      icon:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 14h13"/><path d="M3.5 14v-4.2M7 14V6.2M10.5 14V8M14 14V3.5"/></svg>',
+      st: (S.spend || {}).today_tok > 0 ? fmt(S.spend.today_tok) + " today" : "–" },
     { id:"accounts", nm:"Accounts", dot: resting > 0 ? "warn" : "", st: resting > 0 ? `${resting} resting` : "on pace" },
   ];
 }
@@ -289,8 +317,8 @@ function renderRail() {
     <div class="brand"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.8" y="1.8" width="12.4" height="12.4" rx="3"/><path d="M5.2 8.4l2 2 3.6-4.4"/></svg> issue-pilot</div>
     ${railData().map(m => `
     <button class="rail-item${UI.view === m.id ? " sel" : ""}" data-view="${m.id}">
-      <span class="dot ${m.dot}"></span><span class="nm">${m.nm}</span>
-      <span class="st">${S.paused ? "paused" : esc(m.st)}</span>
+      ${m.icon ? `<span style="display:flex;color:var(--gold)">${m.icon}</span>` : `<span class="dot ${m.dot}"></span>`}<span class="nm">${m.nm}</span>
+      <span class="st">${S.paused && m.id !== "spend" ? "paused" : esc(m.st)}</span>
     </button>`).join("")}
     <button class="rail-item needs${UI.view === "needs" ? " sel" : ""}" data-view="needs">
       <span style="color:var(--warn);display:flex"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8L15 13.8H1L8 1.8z"/><path d="M8 6.5v3.2"/></svg></span>
@@ -339,7 +367,7 @@ function scannerPane() {
       : r.ready != null && r.threshold != null
         ? (r.ready < r.threshold ? `queue low — ${r.ready} ready of ${r.threshold} wanted, refill eligible`
                                  : `waiting for the queue to drop (${r.ready} ready of ${r.threshold} wanted)`)
-        : "–"}</div>
+        : "–"}${tokBadge(lastRunOf("scanner"))}</div>
     <div class="status-line">${last}${r.next_run ? ` · next check in ${fmtDur(r.next_run - NOW)}` : ""}${r.scanner_model ? ` · default ${esc(r.scanner_model)}${r.scanner_effort ? ` (${esc(r.scanner_effort)})` : ""}` : ""}</div>
     ${previewBox(preview)}
     <div class="section"><h3>Dimensions</h3><div class="rows">${rows || `<div class="row"><span class="sub">no scanners resolved</span></div>`}</div>
@@ -359,12 +387,13 @@ function workersPane() {
     const batch = running
       ? `batch: ${l.batch_done ?? 0} done of ${l.batch_target ?? "–"} · running ${fmtDur(NOW - l.batch_started)}`
       : "idle";
+    const laneRun = spendRuns().find(x => x.kind === "lane" && x.tok > 0 && (x.detail === l.id || x.detail === l.label));
     return `
     <div class="row${off ? " off" : ""}">
       <span class="dot ${running ? "run" : ""}"></span>
       <div class="grow"><span class="lbl">${esc(l.label)}</span>
         <span class="sub mono" style="margin-left:8px">${l.model ? esc(l.model) + (l.effort ? ` (${esc(l.effort)})` : "") : "–"}</span>
-        <div class="sub">${batch}${l.workers_live != null ? ` · ${l.workers_live} of ${l.concurrency ?? "–"} workers live` : ""} · ${l.total_done ?? "–"} PRs all-time</div></div>
+        <div class="sub">${batch}${l.workers_live != null ? ` · ${l.workers_live} of ${l.concurrency ?? "–"} workers live` : ""} · ${l.total_done ?? "–"} PRs all-time${tokBadge(laneRun)}</div></div>
       ${chip(off ? "off" : l.mode === "always" ? "always on" : "follow my pace", "laneMode",
              { k:"laneMode", id:l.id, label:l.label, disabled: !!l.disabled }, true)}
     </div>`; }).join("");
@@ -405,7 +434,7 @@ function releasePane() {
   return `
     <div class="crumb">Release · production promotion</div>
     <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
-    <div class="now"><span class="pulse" style="background:${p.active ? "var(--gold)" : "var(--accent)"}"></span>Right now: ${S.paused ? "paused by you" : p.active ? "PROMOTING — dev → staging → main" : p.waiting >= p.threshold ? "threshold reached — next hourly check promotes" : "armed, counting commits"}</div>
+    <div class="now"><span class="pulse" style="background:${p.active ? "var(--gold)" : "var(--accent)"}"></span>Right now: ${S.paused ? "paused by you" : p.active ? "PROMOTING — dev → staging → main" : p.waiting >= p.threshold ? "threshold reached — next hourly check promotes" : "armed, counting commits"}${tokBadge(lastRunOf("promotion"))}</div>
     <div class="status-line">${p.last ? `last release: <span class="${p.last.outcome === "succeeded" ? "ok" : "warn"}">${esc(p.last.outcome)}</span> · ${ago(p.last.ts)}` : "no release recorded yet"}</div>
     <div class="bar wide"><i style="width:${pct}%;background:${p.active ? "var(--gold)" : "var(--accent)"}"></i></div>
     ${previewBox(preview)}
@@ -452,7 +481,7 @@ function campaignPane() {
   return `
     <div class="crumb">Campaign · goal loop</div>
     <div class="headline">${goalLine}${c.goal.length > 300 ? `<button class="disc${UI.goalOpen ? " open" : ""}" data-act="toggleGoal" style="margin-left:6px"><span class="car">▸</span>${UI.goalOpen ? "less" : "full goal"}</button>` : ""}</div>
-    <div class="now"><span class="pulse"></span>Right now: ${S.paused || paused ? "paused" : `active · ${c.closed ?? "–"} done / ${c.open ?? "–"} open gaps`}</div>
+    <div class="now"><span class="pulse"></span>Right now: ${S.paused || paused ? "paused" : `active · ${c.closed ?? "–"} done / ${c.open ?? "–"} open gaps`}${tokBadge(lastRunOf("campaign"))}</div>
     ${previewBox(preview)}
     ${c.assessment ? `<div class="section"><button class="disc${UI.assessOpen ? " open" : ""}" data-act="toggleAssess"><span class="car">▸</span>latest assessment</button>
       ${UI.assessOpen ? `<div class="tg-card" style="margin-top:10px"><pre dir="auto">${esc(c.assessment)}</pre></div>` : ""}</div>`
@@ -470,9 +499,71 @@ function tenantPane() {
   return `
     <div class="crumb">Tenant note · release announcements</div>
     <div class="headline">${a.enabled ? "After each release, post a short summary to the tenants' Telegram · skips internal-only releases." : "Release notes are disabled."}</div>
-    <div class="now"><span class="pulse" style="${a.pending ? "background:var(--warn)" : "background:var(--dim);animation:none"}"></span>Right now: ${a.pending ? "retry pending — next hourly tick" : a.last ? `idle — last ${esc(a.last.outcome)} ${ago(a.last.ts)}` : "idle — nothing posted yet"}</div>
+    <div class="now"><span class="pulse" style="${a.pending ? "background:var(--warn)" : "background:var(--dim);animation:none"}"></span>Right now: ${a.pending ? "retry pending — next hourly tick" : a.last ? `idle — last ${esc(a.last.outcome)} ${ago(a.last.ts)}` : "idle — nothing posted yet"}${tokBadge(lastRunOf("note"))}</div>
     ${previewBox(a.last ? `Last note ${esc(a.last.outcome)} ${ago(a.last.ts)} covering <em>${a.last.commits ?? "–"}</em> changes. Posting now sends everything shipped since then.` : "Nothing posted yet — the first note covers everything shipped so far.")}
     <div class="section">${announceBlock()}</div>`;
+}
+
+const KIND_LABEL = { scanner:"Scanners", lane:"Workers", promotion:"Release", campaign:"Campaign", note:"Tenant note" };
+const RUN_LABEL  = { scanner:"Scanner", lane:"Worker batch", promotion:"Release", campaign:"Campaign", note:"Tenant note" };
+const KIND_HEAD  = { scanner:"the scanners", lane:"the workers", promotion:"the release", campaign:"the campaign", note:"tenant notes" };
+const KIND_COLOR = { scanner:"rgba(62,201,142,.85)", promotion:"rgba(212,168,67,.85)", lane:"rgba(212,168,67,.42)", campaign:"rgba(62,201,142,.42)", note:"rgba(139,151,173,.6)" };
+
+function spendPane() {
+  const sp = S.spend || {};
+  const today = sp.today_tok || 0;
+  const kinds = Object.entries(sp.by_kind || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const kindSum = kinds.reduce((n, [, v]) => n + v, 0);
+  const headline = today > 0
+    ? `The fleet spent <span class="mono" style="color:var(--gold)">${fmt(today)}</span> tokens today${kinds.length ? ` — most of it on ${esc(KIND_HEAD[kinds[0][0]] || kinds[0][0])} (${fmt(kinds[0][1])})` : ""}.`
+    : `No AI runs recorded yet today — the ledger started 2026-08-30.`;
+  const machine = kinds.length ? `
+    <div class="section"><h3>Today by machine</h3>
+      <div class="machbar">${kinds.map(([k, v]) =>
+        `<i style="width:${(100 * v / kindSum).toFixed(1)}%;background:${KIND_COLOR[k] || "var(--dim)"}" title="${escA(KIND_LABEL[k] || k)} ${escA(fmt(v))}"></i>`).join("")}</div>
+      <div class="machleg">${kinds.map(([k, v]) =>
+        `<span><span class="sw" style="background:${KIND_COLOR[k] || "var(--dim)"}"></span>${esc(KIND_LABEL[k] || k)} <b>${fmt(v)}</b></span>`).join("")}</div>
+    </div>` : "";
+  const engines = Object.entries(sp.by_engine || {}).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const engine = engines.length ? `
+    <div class="section"><h3>Today by engine</h3><div class="rows">${engines.map(([k, v]) => `
+      <div class="row" style="padding:9px 16px">
+        <span class="lbl" style="flex:none;width:150px">${esc(k)}</span>
+        <span class="mono" style="font-size:13px;flex:none">${fmt(v)}</span>
+      </div>`).join("")}</div></div>` : "";
+  const days = sp.days || [];
+  const dayMax = Math.max(1, ...days.map(d => d.tok || 0));
+  const week = days.some(d => d.tok > 0) ? `
+    <div class="section"><h3>Last 7 days</h3>
+      <div class="days">${days.map((d, i) =>
+        `<div class="d${i === days.length - 1 ? " cur" : ""}" style="height:${Math.round(100 * (d.tok || 0) / dayMax)}%" data-tip="${escA(d.d)} — ${d.tok > 0 ? escA(fmt(d.tok)) : "0"}"></div>`).join("")}</div>
+    </div>` : "";
+  const runs = sp.runs || [];
+  const presentKinds = [...new Set(runs.map(r => r.kind).filter(Boolean))];
+  const filter = UI.spendFilter === "All" || presentKinds.includes(UI.spendFilter) ? UI.spendFilter : "All";
+  const chips = ["All", ...presentKinds].map(f =>
+    `<button class="btn small${filter === f ? " sel" : ""}" data-act="spendFilter" data-f="${escA(f)}">${esc(f === "All" ? "All" : KIND_LABEL[f] || f)}</button>`).join("");
+  const runRows = runs.filter(r => filter === "All" || r.kind === filter).map(r => {
+    const t = r.ts ? new Date(r.ts * 1000).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : "–";
+    const io = `in ${r.in > 0 ? fmt(r.in) : "0"} · cached ${r.cached > 0 ? fmt(r.cached) : "0"} · out ${r.out > 0 ? fmt(r.out) : "0"}`;
+    return `
+    <div class="row" style="padding:8px 14px">
+      <span class="mono" style="font-size:12px;color:var(--dim);flex:none;width:64px">${esc(t)}</span>
+      <span class="grow" style="font-size:13px">${esc(RUN_LABEL[r.kind] || r.kind || "run")}${r.detail ? " — " + esc(r.detail) : ""}</span>
+      <span class="mono" style="font-size:11.5px;color:var(--dim);flex:none">${esc(r.model || r.engine || "–")}</span>
+      <span class="mono" style="font-size:12px;color:var(--dim);flex:none;width:48px;text-align:right">${fmtDur(r.secs)}</span>
+      <span class="mono" style="font-size:12.5px;flex:none;width:52px;text-align:right" title="${escA(io)}">${fmt(r.tok)}</span>
+    </div>`;
+  }).join("");
+  const recent = runs.length ? `
+    <div class="section"><h3>Recent runs</h3>
+      <div class="fchips">${chips}</div>
+      <div class="rows">${runRows || `<div class="row"><span class="sub">no runs in this category</span></div>`}</div>
+    </div>` : "";
+  return `
+    <div class="crumb">Spend · token cost</div>
+    <div class="headline">${headline}</div>
+    ${machine}${engine}${week}${recent}`;
 }
 
 function accountsPane() {
@@ -528,7 +619,8 @@ function needsPane() {
 }
 
 const PANES = { scanner:scannerPane, workers:workersPane, release:releasePane,
-                campaign:campaignPane, tenant:tenantPane, accounts:accountsPane, needs:needsPane };
+                campaign:campaignPane, tenant:tenantPane, spend:spendPane,
+                accounts:accountsPane, needs:needsPane };
 
 function render() {
   if (!S) return;
@@ -602,6 +694,7 @@ document.addEventListener("click", e => {
   if (a === "masterPause") api({ action: S.paused ? "system_resume" : "system_pause" },
       S.paused ? "system started — lanes resume within a minute" : "system paused — scanning, pacing and batches stop");
   else if (a === "dismissBanner") { UI.bannerGone = true; render(); }
+  else if (a === "spendFilter") { UI.spendFilter = el.dataset.f; render(); }
   else if (a === "scanToggle") { const x = (S.scanners||[]).find(s => s.name === name);
     api({ action:"scanner_toggle", name }, `${name} ${x && x.enabled ? "removed from" : "back in"} the rotation`); }
   else if (a === "runNext") api({ action:"scanner_run_next", name }, `${name} queued for the next natural slot`);
