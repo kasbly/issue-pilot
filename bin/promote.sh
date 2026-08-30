@@ -94,8 +94,13 @@ outcome="FAILED"
 rounds="${PROMOTE_MAX_ROUNDS:-8}"
 for round in $(seq 1 "$rounds"); do
   log "promotion round $round/$rounds"
-  # PROMOTE_USES_CLAUDE=false when PROMOTE_CMD bills another provider (grok, codex)
-  if [ "${PROMOTE_USES_CLAUDE:-true}" = "true" ] && ! pick_claude_account; then
+  # The pace gate follows the SELECTED MODEL when PROMOTE_MODEL is set: a Claude
+  # model re-arms it (bill a paced account, defer when none is behind its line),
+  # grok-*/gpt-* models skip it (their own quota). PROMOTE_USES_CLAUDE is the
+  # fallback for commands that don't use the model variable.
+  uses_claude="${PROMOTE_USES_CLAUDE:-true}"
+  case "${PROMOTE_MODEL:-}" in grok-*|gpt-*) uses_claude=false ;; ?*) uses_claude=true ;; esac
+  if [ "$uses_claude" = "true" ] && ! pick_claude_account; then
     log "round $round deferred — waiting for an account to fall behind its line"
     sleep "${PROMOTE_ROUND_WAIT:-600}"
     continue

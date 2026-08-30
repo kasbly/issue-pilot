@@ -64,8 +64,11 @@ case "${1:-status}" in
       CAMPAIGN_BROWSER_URL="${CAMPAIGN_BROWSER_URL:-}" \
       CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}" \
       CAMPAIGN_STATE_DIR="$CDIR"
-    # CAMPAIGN_USES_CLAUDE=false when CAMPAIGN_CMD bills another provider (grok, codex)
-    if [ "${CAMPAIGN_USES_CLAUDE:-true}" = "true" ]; then
+    # Pace gate follows the selected model (Claude model => armed; grok-*/gpt-* =>
+    # own quota); CAMPAIGN_USES_CLAUDE is the fallback when no model var is used.
+    uses_claude="${CAMPAIGN_USES_CLAUDE:-true}"
+    case "${CAMPAIGN_MODEL:-}" in grok-*|gpt-*) uses_claude=false ;; ?*) uses_claude=true ;; esac
+    if [ "$uses_claude" = "true" ]; then
       pick_claude_account || { log "campaign tick deferred — next tick retries"; exit 0; }
     fi
     tick_start=$(date +%s)

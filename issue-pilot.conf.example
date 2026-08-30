@@ -57,7 +57,9 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 #SCANNER_PACE_EXEMPT_MODELS="grok-*"
 # The panel's "Claude works on: issues / scanner / promotion" toggles write
 # state/claude-role-<role>.disabled — no conf edit needed for those.
-# Set to false when CAMPAIGN_CMD / PROMOTE_CMD bill another provider (grok, codex):
+# Set to false when CAMPAIGN_CMD / PROMOTE_CMD bill another provider (grok, codex).
+# When PROMOTE_MODEL / CAMPAIGN_MODEL is set, the gate follows the model instead:
+# a Claude model arms it, grok-*/gpt-* models skip it:
 #CAMPAIGN_USES_CLAUDE=true
 #PROMOTE_USES_CLAUDE=true
 #SCANNER_FALLBACK_DIMS="*"                # dims allowed to fall back ("*" = all, or a space list)
