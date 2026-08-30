@@ -150,6 +150,10 @@ class Handler(SimpleHTTPRequestHandler):
                     return self._reply(400, {"error": "bad lane id"})
                 flag = state_path("lane-%s.disabled" % lane)
                 off = set_flag(flag, not os.path.exists(flag))
+                if not off:  # re-enabling clears an auto-disable's reason + strikes
+                    for f in ("lane-%s.disabled-reason" % lane, "lane-%s.crashes" % lane):
+                        p = state_path(f)
+                        os.path.exists(p) and os.remove(p)
                 if not off:
                     kick("pace.sh")
                 refresh_status()

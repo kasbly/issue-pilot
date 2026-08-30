@@ -141,14 +141,15 @@ for id in $lane_order; do
   conc=$(cat "$STATE_DIR/lane-$id.concurrency" 2>/dev/null || echo 0)
   started=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
   l_label=$(lane_get "$id" LABEL "$id")
-  lane_rows+=("$(jq -n --arg id "$id" --arg label "$l_label" \
+  l_reason=$(head -c 200 "$STATE_DIR/lane-$id.disabled-reason" 2>/dev/null || true)
+  lane_rows+=("$(jq -n --arg id "$id" --arg label "$l_label" --arg dreason "$l_reason" \
     --arg mode "$(lane_get "$id" MODE off)" --argjson conc "$conc" \
     --argjson disabled "$(lane_disabled "$id" && echo true || echo false)" \
     --argjson live "${LIVE[$l_label]:-0}" \
     --arg model "$(lane_get "$id" MODEL)" --arg effort "$(lane_get "$id" EFFORT)" \
     --argjson started "$started" --argjson target "${BATCH_SIZE:-0}" \
     --argjson prs "$all_prs" '
-    {id:$id, label:$label, mode:$mode, concurrency:$conc, disabled:$disabled, workers_live:$live, model:$model, effort:$effort,
+    {id:$id, label:$label, disabled_reason:(if $dreason=="" then null else $dreason end), mode:$mode, concurrency:$conc, disabled:$disabled, workers_live:$live, model:$model, effort:$effort,
      batch_started:(if $started==0 then null else $started end),
      batch_target:$target,
      batch_done:([$prs[] | select((.headRefName|startswith("pilot-"+$id+"/"))

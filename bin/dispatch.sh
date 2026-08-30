@@ -28,6 +28,29 @@ while true; do
     log "lane $id: batch finished status=$st"
     bash "$PKG_DIR/bin/cost-log.sh" lane "$id" "$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)" \
       "$(lane_get "$id" CMD)" "$(lane_get "$id" MODEL)/$(lane_get "$id" EFFORT)" || true
+    # Crash-loop tripwire: a batch that fails almost instantly (broken auth, bad
+    # CLI) would otherwise be relaunched forever. LANE_CRASH_MAX such failures in
+    # a row auto-disable the lane via the same flag the panel toggle uses, with a
+    # reason the panel shows; re-enabling from the panel clears the strike count.
+    # Signal exits (>=128, e.g. our own TERM on repace) never count as crashes.
+    b_start=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
+    b_dur=$(( $(date +%s) - b_start ))
+    if [ "$st" -gt 0 ] && [ "$st" -lt 128 ] && [ "$b_start" -gt 0 ] && [ "$b_dur" -lt "${LANE_CRASH_SECS:-120}" ]; then
+      n=$(( $(cat "$STATE_DIR/lane-$id.crashes" 2>/dev/null || echo 0) + 1 ))
+      echo "$n" >"$STATE_DIR/lane-$id.crashes"
+      if [ "$n" -ge "${LANE_CRASH_MAX:-3}" ]; then
+        why="crash loop — $n batches in a row died within ${LANE_CRASH_SECS:-120}s"
+        tail -30 "$STATE_DIR/batch-$id.log" 2>/dev/null | grep -q -i -E "refresh token was revoked|401 Unauthorized|log ?out and sign in|invalid_grant|not logged in|token .*expired" \
+          && why="authentication broken — re-login needed ($n instant batch failures)"
+        touch "$STATE_DIR/lane-$id.disabled"
+        printf '%s\n' "auto-disabled $(date '+%F %T'): $why" >"$STATE_DIR/lane-$id.disabled-reason"
+        rm -f "$STATE_DIR/lane-$id.crashes"
+        log "lane $id: AUTO-DISABLED — $why"
+        [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: lane '$id' auto-disabled — $why" bash -c "$NOTIFY_CMD" || true; }
+      fi
+    else
+      rm -f "$STATE_DIR/lane-$id.crashes"
+    fi
     [ "$st" -ne 0 ] && log "lane $id: non-zero exit — issues it claimed may need '$CLAIM_LABEL' removed to re-queue"
     unset "lane_pid[$id]"
   done

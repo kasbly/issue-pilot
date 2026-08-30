@@ -9,6 +9,8 @@ CLAIM_LABEL="in-pilot"               # added when a lane picks an issue up
 
 # --- Refill (issue generation) ---
 REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
+LANE_CRASH_SECS=120                  # a failed batch faster than this counts as a crash
+LANE_CRASH_MAX=3                     # crashes in a row before the lane auto-disables (panel shows why)
 JANITOR_STALE_HOURS=6                # hourly janitor releases claims older than this with no PR
 BLOCKED_LABEL="status/blocked"       # parked issues: workers can't finish them, a human must decide
 PARK_AFTER_CLAIMS=4                  # janitor parks a ready issue claimed this often with no PR
