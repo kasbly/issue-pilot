@@ -2,6 +2,14 @@
 # Collects subscription usage + active work into web/status.json for the status page.
 # Linux-only (GNU date, /proc). Run from issue-pilot-status.timer every few minutes.
 . "$(dirname "$0")/lib.sh"
+
+# engine of a command: named engine when the command is pinned to ONE CLI, empty
+# when it dispatches by model prefix (mentions several engines)
+sniff_engine() {
+  local c="$1" n=0 e="" k
+  for k in grok codex claude; do case "$c" in *"$k"*) n=$((n+1)); e=$k ;; esac; done
+  [ "$n" -eq 1 ] && echo "$e" || true
+}
 cd "$ISSUE_PILOT_HOME"
 mkdir -p web
 now=$(date +%s)
@@ -164,13 +172,6 @@ pw_count=$(gh api "repos/$GH_REPO/compare/${STAGING_BRANCH:-staging}...${BASE_BR
 read -r pl_ts pl_outcome 2>/dev/null <"$STATE_DIR/promotion-last" || { pl_ts=0; pl_outcome=""; }
 p_active=false; [ -f "$STATE_DIR/promotion-active" ] && p_active=true
 # model/effort: the PROMOTE_MODEL/PROMOTE_EFFORT conf vars, else parsed out of PROMOTE_CMD
-# engine of a command: named engine when the command is pinned to ONE CLI, empty
-# when it dispatches by model prefix (mentions several engines)
-sniff_engine() {
-  local c="$1" n=0 e="" k
-  for k in grok codex claude; do case "$c" in *"$k"*) n=$((n+1)); e=$k ;; esac; done
-  [ "$n" -eq 1 ] && echo "$e"
-}
 p_eng=$(sniff_engine "${PROMOTE_CMD:-}")
 p_model="${PROMOTE_MODEL:-$(grep -o -E '(-m|--model) [A-Za-z0-9._/-]+' <<<"${PROMOTE_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
 p_effort="${PROMOTE_EFFORT:-$(grep -o -E '(--reasoning-effort|--effort) [a-z]+' <<<"${PROMOTE_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
