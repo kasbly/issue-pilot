@@ -273,11 +273,15 @@ function fallbackPair() {
   return [f, null];
 }
 const flat = a => [{ items: a.map(v => ({ v, label: String(v) })) }];
+const ENGINE_FAM = { grok: "Grok", claude: "Claude", codex: "Codex" };
+const ENGINE_EFFORTS = { grok: ["low","medium","high","xhigh"], codex: ["low","medium","high","xhigh"], claude: ["low","medium","high","max"] };
 const POPS = {
-  model:  () => ["Grok","Claude","Codex"].map(f =>
-            ({ grp: f, items: allModels().filter(m => modelFam(m) === f).map(v => ({ v, label: v })) }))
+  // arg.engine (when the command is pinned to one CLI) narrows the options to
+  // models/efforts that engine actually accepts
+  model:  (cur, a) => ["Grok","Claude","Codex"].filter(f => !(a && a.engine) || ENGINE_FAM[a.engine] === f)
+            .map(f => ({ grp: f, items: allModels().filter(m => modelFam(m) === f).map(v => ({ v, label: v })) }))
             .filter(g => g.items.length),
-  effort: () => flat(EFFORTS),
+  effort: (cur, a) => flat((a && a.engine && ENGINE_EFFORTS[a.engine]) || EFFORTS),
   laneMode: () => flat(["always on","follow my pace","off"]),
   promoteAfter: cur => flat([...new Set([25,50,75,100,150, cur].filter(v => typeof v === "number"))].sort((a,b)=>a-b)),
   refillThresh: cur => flat([...new Set([10,20,30,40,50, cur].filter(v => typeof v === "number"))].sort((a,b)=>a-b)),
@@ -457,7 +461,7 @@ function releasePane() {
   const confirming = UI.confirmAct === "promote";
   return `
     <div class="crumb">Release · production promotion</div>
-    <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting · using ${chip(p.model, "model", { k:"setting", key:"PROMOTE_MODEL" })} (${chip(p.effort, "effort", { k:"setting", key:"PROMOTE_EFFORT" })})${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
+    <div class="headline">Release to production after ${chip(p.threshold, "promoteAfter", { k:"setting", key:"PROMOTE_AFTER_COMMITS" })} new commits — ${p.waiting ?? "–"} waiting · using ${chip(p.model, "model", { k:"setting", key:"PROMOTE_MODEL", engine:p.engine })} (${chip(p.effort, "effort", { k:"setting", key:"PROMOTE_EFFORT", engine:p.engine })})${p.enabled === false ? ` <span class="tag">auto off — manual only</span>` : ""}.</div>
     <div class="now"><span class="pulse" style="background:${p.active ? "var(--gold)" : "var(--accent)"}"></span>Right now: ${S.paused ? "paused by you" : p.active ? "PROMOTING — dev → staging → main" : p.waiting >= p.threshold ? "threshold reached — next hourly check promotes" : "armed, counting commits"}${tokBadge(lastRunOf("promotion"))}</div>
     <div class="status-line">${p.last ? `last release: <span class="${p.last.outcome === "succeeded" ? "ok" : "warn"}">${esc(p.last.outcome)}</span> · ${ago(p.last.ts)}` : "no release recorded yet"}</div>
     <div class="bar wide"><i style="width:${pct}%;background:${p.active ? "var(--gold)" : "var(--accent)"}"></i></div>
@@ -731,7 +735,7 @@ let popArg = null;
 function openPop(btn) {
   popArg = JSON.parse(btn.dataset.arg);
   const cur = btn.dataset.cur;
-  const groups = POPS[btn.dataset.pop](isNaN(cur) ? cur : Number(cur));
+  const groups = POPS[btn.dataset.pop](isNaN(cur) ? cur : Number(cur), popArg);
   pop.innerHTML = groups.map(g =>
     (g.grp ? `<div class="grp">${g.grp}</div>` : "") +
     g.items.map(o => `<button class="opt${String(o.v) === cur ? " cur" : ""}" data-v="${escA(o.v)}">
