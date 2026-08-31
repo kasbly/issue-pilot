@@ -72,8 +72,6 @@ for d in "$ISSUE_PILOT_HOME/node_modules" "$ISSUE_PILOT_HOME"/.pnpm-store* "$ISS
   [ -e "$d" ] || continue
   rm -rf "$d" && log "janitor: removed stray $d from the scheduler home"
 done
-exit 0
-
 # --- Disk floor --------------------------------------------------------------
 # When any watched filesystem drops under DISK_FLOOR_GB free, sweep the safe
 # debris — stale batch worktrees in /tmp (lsof-guarded), plus the site-specific
@@ -103,3 +101,5 @@ if [ -n "$low" ]; then
 else
   rm -f "$STATE_DIR/disk-low"
 fi
+
+exit 0
