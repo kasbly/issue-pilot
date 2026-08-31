@@ -73,3 +73,33 @@ for d in "$ISSUE_PILOT_HOME/node_modules" "$ISSUE_PILOT_HOME"/.pnpm-store* "$ISS
   rm -rf "$d" && log "janitor: removed stray $d from the scheduler home"
 done
 exit 0
+
+# --- Disk floor --------------------------------------------------------------
+# When any watched filesystem drops under DISK_FLOOR_GB free, sweep the safe
+# debris — stale batch worktrees in /tmp (lsof-guarded), plus the site-specific
+# DISK_FLOOR_SWEEP_CMD — and raise state/disk-low for the panel. The flag clears
+# itself once space recovers, so the banner is always current.
+floor_gb="${DISK_FLOOR_GB:-30}"
+low=""
+for pth in ${DISK_FLOOR_PATHS:-/ /tmp}; do
+  avail_kb=$(df -Pk "$pth" 2>/dev/null | awk 'NR==2 {print $4}') || true
+  [ -n "${avail_kb:-}" ] || continue
+  avail_gb=$(( avail_kb / 1048576 ))
+  [ "$avail_gb" -lt "$floor_gb" ] && low="${low}${pth} ${avail_gb}G free · "
+done
+if [ -n "$low" ]; then
+  swept=0
+  for d in /tmp/pilot-* /tmp/promote-*; do
+    [ -d "$d" ] || continue
+    [ $(( ($(date +%s) - $(stat -c %Y "$d")) / 3600 )) -ge "${DISK_FLOOR_TMP_HOURS:-6}" ] || continue
+    lsof +D "$d" >/dev/null 2>&1 && continue
+    rm -rf "$d" 2>/dev/null && swept=$((swept + 1))
+  done
+  git -C "${REPO_DIR:-$ISSUE_PILOT_HOME/repo}" worktree prune 2>/dev/null || true
+  [ -n "${DISK_FLOOR_SWEEP_CMD:-}" ] && bash -c "$DISK_FLOOR_SWEEP_CMD" >/dev/null 2>&1 || true
+  echo "$(date '+%F %T') ${low%· } — swept $swept stale worktree(s)" >"$STATE_DIR/disk-low"
+  log "janitor: DISK LOW — ${low%· }— swept $swept stale worktree(s) + site sweep"
+  [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: disk low — ${low%· }" bash -c "$NOTIFY_CMD" || true; }
+else
+  rm -f "$STATE_DIR/disk-low"
+fi

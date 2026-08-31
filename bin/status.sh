@@ -116,18 +116,19 @@ nr=$(systemctl show issue-pilot-refill.timer -p NextElapseUSecRealtime --value 2
 [ -n "$nr" ] && [ "$nr" != "n/a" ] && next_refill=$(date -d "$nr" +%s 2>/dev/null || echo 0)
 read -r rl_ts rl_action rl_detail 2>/dev/null <"$STATE_DIR/refill-last" || { rl_ts=0; rl_action=""; rl_detail=""; }
 b_red=false; [ -f "$STATE_DIR/base-red" ] && b_red=true
+d_low="$(head -c 200 "$STATE_DIR/disk-low" 2>/dev/null || true)"
 # the "needs you" pane lists a few parked issues by title (count comes from blocked_total)
 blocked_list=$(gh api -X GET search/issues -f q="repo:$GH_REPO is:issue is:open label:\"${BLOCKED_LABEL:-status/blocked}\"" \
   -f per_page=6 --jq '[.items[] | {number, title}]' 2>/dev/null || echo '[]')
 refill=$(jq -n --argjson ready "$ready_count" --argjson threshold "${REFILL_THRESHOLD:-0}" \
   --argjson open "$open_total" --argjson blocked "$blocked_total" --argjson blocked_list "$blocked_list" \
-  --argjson base_red "$b_red" --argjson batch "${BATCH_SIZE:-25}" --argjson next "$next_refill" \
+  --argjson base_red "$b_red" --arg disklow "$d_low" --argjson batch "${BATCH_SIZE:-25}" --argjson next "$next_refill" \
   --arg model "${SCANNER_MODEL:-}" --arg effort "${SCANNER_EFFORT:-}" \
   --arg fb "$([ -n "${SCANNER_FALLBACK_CMD:-}" ] && echo "${SCANNER_FALLBACK_MODEL:-}${SCANNER_FALLBACK_EFFORT:+ (${SCANNER_FALLBACK_EFFORT})}")" \
   --arg fbeng "$(sniff_engine "${SCANNER_FALLBACK_CMD:-}")" \
   --argjson last_ts "${rl_ts:-0}" --arg last_action "${rl_action:-}" --arg last_detail "${rl_detail:-}" \
   '{ready:$ready, threshold:$threshold, open_issues:$open, blocked_issues:$blocked, blocked_list:$blocked_list,
-    base_red:$base_red, batch_size:$batch, next_run:(if $next==0 then null else $next end),
+    base_red:$base_red, disk_low:(if $disklow=="" then null else $disklow end), batch_size:$batch, next_run:(if $next==0 then null else $next end),
     scanner_model:(if $model=="" then null else $model end), scanner_effort:(if $effort=="" then null else $effort end),
     scanner_fallback:(if $fb=="" then null else $fb end),
     fallback_engine:(if $fbeng=="" then null else $fbeng end),

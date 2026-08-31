@@ -704,6 +704,10 @@ function render() {
   if (!S) return;
   NOW = Math.floor(Date.now()/1000);
   document.body.classList.toggle("paused", !!S.paused);
+  const dl = (S.refill || {}).disk_low;
+  $("#diskbanner") && ($("#diskbanner").outerHTML = "");
+  if (dl && !UI.diskBannerGone) $("#banner").insertAdjacentHTML("beforebegin",
+    `<div class="banner" id="diskbanner" style="border-color:var(--warn)">disk low — ${esc(dl)} <button class="bx" onclick="UI.diskBannerGone=true;render()">×</button></div>`);
   $("#banner").innerHTML = ((S.refill || {}).base_red && !UI.bannerGone) ? `
     <div class="banner">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8L15 13.8H1L8 1.8z"/><path d="M8 6.5v3.2"/></svg>

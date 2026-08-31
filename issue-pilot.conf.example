@@ -9,6 +9,10 @@ CLAIM_LABEL="in-pilot"               # added when a lane picks an issue up
 
 # --- Refill (issue generation) ---
 REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
+DISK_FLOOR_GB=30                     # janitor sweeps + panel banner when a watched fs has less free
+#DISK_FLOOR_PATHS="/ /tmp"           # filesystems to watch
+#DISK_FLOOR_TMP_HOURS=6              # stale-worktree age for the emergency sweep (janitor default: 48h)
+#DISK_FLOOR_SWEEP_CMD=""             # site-specific extra cleanup, run only when the floor is breached
 LANE_CRASH_SECS=120                  # a failed batch faster than this counts as a crash
 LANE_CRASH_MAX=3                     # crashes in a row before the lane auto-disables (panel shows why)
 JANITOR_STALE_HOURS=6                # hourly janitor releases claims older than this with no PR
