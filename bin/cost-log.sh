@@ -20,9 +20,9 @@ engine="" home=""
 case "$cmd" in
   *grok*)  engine=grok;  home="$HOME/.grok" ;;
   *codex*) engine=codex; home="${CODEX_HOME:-$HOME/.codex}"
-           h=$(grep -o "CODEX_HOME=[^ ]*" <<<"$cmd" | head -1 | cut -d= -f2); [ -n "$h" ] && home="$h" ;;
+           h=$(grep -o "CODEX_HOME=[^ ]*" <<<"$cmd" | head -1 | cut -d= -f2 || true); [ -n "$h" ] && home="$h" || true ;;
   *claude*) engine=claude; home="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-           h=$(grep -o "CLAUDE_CONFIG_DIR=[^ ]*" <<<"$cmd" | head -1 | cut -d= -f2); [ -n "$h" ] && home="$h" ;;
+           h=$(grep -o "CLAUDE_CONFIG_DIR=[^ ]*" <<<"$cmd" | head -1 | cut -d= -f2 || true); [ -n "$h" ] && home="$h" || true ;;
   *) exit 0 ;;
 esac
 
