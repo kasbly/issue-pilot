@@ -61,8 +61,14 @@ for a in "${ACCTS[@]}"; do
       [ -n "$snap" ] && break
     done
     if [ -n "$snap" ]; then
-      used=$(grep -o '"used_percent":[0-9.]*' <<<"$snap" | head -1 | cut -d: -f2 || true)
-      resets=$(grep -o '"resets_at":[0-9]*' <<<"$snap" | head -1 | cut -d: -f2 || true)
+      # the weekly window is the one the pace math needs: prefer the block whose
+      # window_minutes is 10080 (secondary in current codex builds); fall back to
+      # the first percent for older snapshot shapes
+      wk=$(grep -o '"[a-z]*":{"used_percent":[0-9.]*,"window_minutes":10080,"resets_at":[0-9]*}' <<<"$snap" | head -1 || true)
+      used=$(grep -o '"used_percent":[0-9.]*' <<<"${wk:-$snap}" | head -1 | cut -d: -f2 || true)
+      resets=$(grep -o '"resets_at":[0-9]*' <<<"${wk:-$snap}" | head -1 | grep -o "[0-9]*$" || true)
+      h5b=$(grep -o '"[a-z]*":{"used_percent":[0-9.]*,"window_minutes":300,"resets_at":[0-9]*}' <<<"$snap" | head -1 || true)
+      h5=$(grep -o '"used_percent":[0-9.]*' <<<"${h5b:-}" | head -1 | cut -d: -f2 || true)
       # an exhausted account writes a different shape: primary:null, no percent.
       # That IS data — it means 100% used (reset time not machine-readable there).
       [ -z "$used" ] && case "$snap" in *'"primary":null'*) used=100 ;; esac
