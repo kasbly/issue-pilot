@@ -29,7 +29,7 @@ pct=$(jq -r '.seven_day.utilization // empty' <<<"$resp")
 resets=$(jq -r '.seven_day.resets_at // empty' <<<"$resp")
 # a fresh window reports utilization 0 with resets_at null (nothing used yet):
 # that is "a whole week of headroom", not a malformed response
-[ -n "$pct" ] && [ -z "$resets" ] && resets=$(( $(date +%s) + 604800 ))
+[ -n "$pct" ] && [ -z "$resets" ] && resets=$(date -u -d "@$(( $(date +%s) + 604800 ))" +%FT%TZ)
 [ -n "$pct" ] && [ -n "$resets" ] || { echo "usage-claude: unexpected response shape" >&2; exit 1; }
 
 secs=$(( $(date -d "$resets" +%s) - $(date +%s) ))
