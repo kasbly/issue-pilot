@@ -63,6 +63,9 @@ for a in "${ACCTS[@]}"; do
     if [ -n "$snap" ]; then
       used=$(grep -o '"used_percent":[0-9.]*' <<<"$snap" | head -1 | cut -d: -f2 || true)
       resets=$(grep -o '"resets_at":[0-9]*' <<<"$snap" | head -1 | cut -d: -f2 || true)
+      # an exhausted account writes a different shape: primary:null, no percent.
+      # That IS data — it means 100% used (reset time not machine-readable there).
+      [ -z "$used" ] && case "$snap" in *'"primary":null'*) used=100 ;; esac
       stale=$((now - $(stat -c %Y "$f")))
     fi
   fi

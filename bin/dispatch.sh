@@ -42,6 +42,8 @@ while true; do
         why="crash loop — $n batches in a row died within ${LANE_CRASH_SECS:-120}s"
         tail -30 "$STATE_DIR/batch-$id.log" 2>/dev/null | grep -q -i -E "refresh token was revoked|401 Unauthorized|log ?out and sign in|invalid_grant|not logged in|token .*expired" \
           && why="authentication broken — re-login needed ($n instant batch failures)"
+        tail -30 "$STATE_DIR/batch-$id.log" 2>/dev/null | grep -q -i -E "hit your usage limit|usage limit reached|insufficient.credits" \
+          && why="usage limit reached — quota exhausted until the provider reset ($n instant batch failures)"
         touch "$STATE_DIR/lane-$id.disabled"
         printf '%s\n' "auto-disabled $(date '+%F %T'): $why" >"$STATE_DIR/lane-$id.disabled-reason"
         rm -f "$STATE_DIR/lane-$id.crashes"
