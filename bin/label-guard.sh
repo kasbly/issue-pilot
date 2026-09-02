@@ -14,6 +14,20 @@
 [ "${SCANNER_GUARD:-false}" = "true" ] || exit 0
 
 fixed=0
+# Pass 0: a scanner issue that arrived with NO status/* label at all is invisible
+# to the queue, the lanes AND this guard's main pass (which queries by the ready
+# label). Give it the ready label so it enters the pipeline. Issues a human moved
+# to another status/* (blocked, needs-review) are deliberate states — untouched.
+created_label="${SCANNER_GUARD_LABELS%%,*}"
+if [ -n "$created_label" ]; then
+  for iss in $(gh issue list -R "$GH_REPO" --state open --label "$created_label" --limit 100 \
+    --json number,labels --jq '.[] | select(([.labels[].name | startswith("status/")] | any) | not) | .number' 2>/dev/null); do
+    if gh issue edit "$iss" -R "$GH_REPO" --add-label "$READY_LABEL" >/dev/null 2>&1; then
+      log "label-guard: #$iss had no status/* label — added $READY_LABEL"
+      fixed=$((fixed + 1))
+    fi
+  done
+fi
 for iss in $(gh issue list -R "$GH_REPO" --state open --label "$READY_LABEL" --limit 50 \
   --json number,labels --jq '.[] | select(([.labels[].name] | map(startswith("type/")) | any) | not) | .number'); do
   title=$(gh issue view "$iss" -R "$GH_REPO" --json title --jq .title)
