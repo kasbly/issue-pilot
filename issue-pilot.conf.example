@@ -116,6 +116,8 @@ BATCH_SIZE=25                        # issues per batch session; small batches (
 #                 window = pace follower (work when behind the burn line, idle when not)
 #                 off    = parked (config-level retire; day-to-day on/off is the
 #                          panel's lane toggle, which pauses without touching MODE)
+#   MODEL/EFFORT  passed to CMD as $LANE_MODEL/$LANE_EFFORT — reference them in CMD to
+#                 make the panel's lane chips real (e.g. claude -p ... --model "$LANE_MODEL")
 #   CMD           batch command; receives CONCURRENCY, BATCH_SIZE, GH_REPO, BASE_BRANCH,
 #                 AUTO_MERGE, ISSUE_ORDER, SORT_DIR, READY_LABEL, CLAIM_LABEL, BLOCKED_LABEL, REPO_DIR,
 #                 LANE_NAME, LANE_SLUG in its environment

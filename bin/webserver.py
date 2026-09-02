@@ -11,6 +11,8 @@ Actions (POST /api/action, JSON body {"action": ..., ...}):
                             the queue threshold and the Claude pace gate (one run)
   claude_role_toggle {role}  allow/forbid Claude for: issues | scanner | promote
   announce_preview / announce_now   generate the release note (dry run) / post it
+  lane_model       {id, model}     lane model (LANE_<id>_MODEL; the lane CMD must use $LANE_MODEL)
+  lane_effort      {id, effort}    lane effort (LANE_<id>_EFFORT; CMD uses $LANE_EFFORT)
   scanner_model    {name, model}   per-dim scanner model (SCANNER_MODEL_<dim>)
   scanner_effort   {name, effort}  per-dim scanner effort
   setting          {key, value}    guarded conf edit (thresholds, batch, fallback)
@@ -241,6 +243,22 @@ class Handler(SimpleHTTPRequestHandler):
                     kick("refill.sh", logfile="refill.log")
                 refresh_status()
                 return self._reply(200, {"ok": True, "next": name})
+            if action in ("lane_model", "lane_effort"):
+                lane = req.get("id", "")
+                if not NAME_RE.match(lane):
+                    return self._reply(400, {"error": "bad lane id"})
+                if action == "lane_model":
+                    model = req.get("model", "")
+                    if not MODEL_RE.match(model):
+                        return self._reply(400, {"error": "bad model id"})
+                    conf_set("LANE_%s_MODEL" % lane, model, quote=True)
+                else:
+                    effort = req.get("effort", "")
+                    if effort not in EFFORTS:
+                        return self._reply(400, {"error": "bad effort"})
+                    conf_set("LANE_%s_EFFORT" % lane, effort, quote=True)
+                refresh_status()
+                return self._reply(200, {"ok": True})
             if action in ("scanner_model", "scanner_effort"):
                 name = req.get("name", "")
                 if not NAME_RE.match(name):

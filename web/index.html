@@ -294,6 +294,8 @@ const APPLY = {
   scanModel:  (a,v) => api({ action:"scanner_model",  name:a.name, model:v },  `${a.name} model → ${v} — takes effect next run`),
   scanEffort: (a,v) => api({ action:"scanner_effort", name:a.name, effort:v }, `${a.name} effort → ${v} — takes effect next run`),
   setting:    (a,v) => api({ action:"setting", key:a.key, value:String(v) }, "Saved — takes effect next run"),
+  laneModel:  (a,v) => api({ action:"lane_model",  id:a.id, model:v },  `${a.label} model → ${v} — from its next batch`),
+  laneEffort: (a,v) => api({ action:"lane_effort", id:a.id, effort:v }, `${a.label} effort → ${v} — from its next batch`),
   laneMode: async (a,v) => {
     if (v === "off") {
       if (a.disabled) return toast(`${a.label} is already off`);
@@ -421,7 +423,7 @@ function workersPane() {
     <div class="row${off ? " off" : ""}">
       <span class="dot ${running ? "run" : ""}"></span>
       <div class="grow"><span class="lbl">${esc(l.label)}</span>
-        <span class="sub mono" style="margin-left:8px">${l.model ? esc(l.model) + (l.effort ? ` (${esc(l.effort)})` : "") : "–"}</span>
+        <span class="sub" style="margin-left:8px">${chip(l.model, "model", { k:"laneModel", id:l.id, label:l.label, engine:l.engine })} (${chip(l.effort, "effort", { k:"laneEffort", id:l.id, label:l.label, engine:l.engine || famEngine(l.model) })})</span>
         <div class="sub">${batch}${l.workers_live != null ? ` · ${l.workers_live} of ${l.concurrency ?? "–"} workers live` : ""} · ${l.total_done ?? "–"} PRs all-time${tokBadge(laneRun)}</div>${l.disabled && l.disabled_reason ? `<div class="sub" style="color:var(--warn)">${esc(l.disabled_reason)}</div>` : ""}</div>
       ${chip(off ? "off" : l.mode === "always" ? "always on" : "follow my pace", "laneMode",
              { k:"laneMode", id:l.id, label:l.label, disabled: !!l.disabled }, true)}
