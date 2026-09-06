@@ -61,7 +61,7 @@ fi
 # Remove pilot/promote worktrees untouched for JANITOR_WORKTREE_HOURS (default 48)
 # with no open files, then prune the clone's worktree registry.
 wt_removed=0
-for d in /tmp/pilot-* /tmp/promote-*; do
+for d in ${TMP_SWEEP_GLOBS:-/tmp/pilot-* /tmp/promote-*}; do
   [ -d "$d" ] || continue
   age=$(( $(date +%s) - $(stat -c %Y "$d" 2>/dev/null || date +%s) ))
   [ "$age" -gt $(( ${JANITOR_WORKTREE_HOURS:-48} * 3600 )) ] || continue
@@ -91,7 +91,7 @@ for pth in ${DISK_FLOOR_PATHS:-/ /tmp}; do
 done
 if [ -n "$low" ]; then
   swept=0
-  for d in /tmp/pilot-* /tmp/promote-*; do
+  for d in ${TMP_SWEEP_GLOBS:-/tmp/pilot-* /tmp/promote-*}; do
     [ -d "$d" ] || continue
     [ $(( ($(date +%s) - $(stat -c %Y "$d")) / 3600 )) -ge "${DISK_FLOOR_TMP_HOURS:-6}" ] || continue
     lsof +D "$d" >/dev/null 2>&1 && continue
