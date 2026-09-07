@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%228%22%20fill%3D%22%230e1420%22%2F%3E%3Cpath%20d%3D%22M16%205%20L26%2025%20L16%2020%20L6%2025%20Z%22%20fill%3D%22%233ec98e%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2220%22%20r%3D%222.3%22%20fill%3D%22%23d4a843%22%2F%3E%3C%2Fsvg%3E">
 <title>issue-pilot — Mission Desk</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -344,7 +345,7 @@ function railData() {
 function renderRail() {
   const blocked = (S.refill || {}).blocked_issues;
   $("#rail").innerHTML = `
-    <div class="brand"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.8" y="1.8" width="12.4" height="12.4" rx="3"/><path d="M5.2 8.4l2 2 3.6-4.4"/></svg> issue-pilot</div>
+    <div class="brand"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0e1420" stroke="#24304a"/><path d="M16 5 L26 25 L16 20 L6 25 Z" fill="#3ec98e"/><circle cx="16" cy="20" r="2.3" fill="#d4a843"/></svg> issue-pilot</div>
     ${railData().map(m => `
     <button class="rail-item${UI.view === m.id ? " sel" : ""}" data-view="${m.id}">
       ${m.icon ? `<span style="display:flex;color:var(--gold)">${m.icon}</span>` : `<span class="dot ${m.dot}"></span>`}<span class="nm">${m.nm}</span>
