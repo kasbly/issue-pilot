@@ -212,3 +212,12 @@ bash "$PKG_DIR/bin/label-guard.sh" || true
 after=$(ready_issues | wc -l | tr -d ' ')
 echo "$(date +%s) ran queue=$after via $run_via" >"$STATE_DIR/refill-last"
 log "scanner finished; ready issues now: $after"
+# An empty queue means the lanes are idle right now: one dimension per hour can't
+# keep up, so chain a second scan (next dimension in the rotation, same gates).
+# REFILL_CHAIN guards against chaining more than once per timer fire.
+if [ "${REFILL_DOUBLE_WHEN_EMPTY:-true}" = "true" ] && [ "$count" -eq 0 ] \
+   && [ "$after" -lt "$REFILL_THRESHOLD" ] && [ -z "${REFILL_CHAIN:-}" ]; then
+  log "queue was empty — chaining a second scanner dimension"
+  flock -u 9 || true
+  REFILL_CHAIN=1 exec bash "$0"
+fi

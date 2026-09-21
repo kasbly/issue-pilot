@@ -8,6 +8,7 @@ READY_LABEL="status/approved"        # issues with this label are eligible for w
 CLAIM_LABEL="in-pilot"               # added when a lane picks an issue up
 
 # --- Refill (issue generation) ---
+REFILL_DOUBLE_WHEN_EMPTY=true        # queue at 0 ⇒ refill runs a second dimension right away
 REFILL_THRESHOLD=10                  # run the scanner when open ready issues drop below this
 #TMP_SWEEP_GLOBS="/tmp/pilot-* /tmp/promote-*"  # worktree dirs the janitor may sweep (add your promote agent's naming)
 DISK_FLOOR_GB=30                     # janitor sweeps + panel banner when a watched fs has less free
