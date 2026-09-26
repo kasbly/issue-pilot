@@ -252,7 +252,7 @@ async function api(payload, msg) {
 }
 
 /* ---------- data-derived vocab ---------- */
-const KNOWN_MODELS = ["grok-4.6","grok-4.5","fable","opus","sonnet","haiku","gpt-5.6-sol","gpt-5.6-terra"];
+const KNOWN_MODELS = ["grok-4.6","grok-4.5","fable","claude-opus-5-5","sonnet","haiku","gpt-5.6-sol","gpt-5.6-terra"];
 const EFFORTS = ["low","medium","high","xhigh","max"];
 const modelFam = m => /^grok/.test(m) ? "Grok" : /^gpt/.test(m) ? "Codex" : "Claude";
 const billFam  = m => /^grok/.test(m) ? "SuperGrok" : /^gpt/.test(m) ? "Codex" : "your Claude subscription";
