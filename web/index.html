@@ -600,7 +600,11 @@ function spendPane() {
 }
 
 function accountsPane() {
-  const rows = (S.accounts || []).map(a => {
+  // same order as the pace allocator: most pace headroom (furthest behind its
+  // line) first; accounts without a readable line sort last
+  const headroom = a => (a.used_pct == null || !a.resets_at) ? -Infinity
+    : Math.max(0, Math.min(100, 100 * (1 - (a.resets_at - NOW)/WEEK))) - a.used_pct;
+  const rows = [...(S.accounts || [])].sort((x, y) => headroom(y) - headroom(x)).map(a => {
     const secs = a.resets_at ? a.resets_at - NOW : null;
     const expected = secs != null ? Math.max(0, Math.min(100, 100 * (1 - secs/WEEK))) : null;
     const drift = (a.used_pct != null && expected != null) ? expected - a.used_pct : null;
