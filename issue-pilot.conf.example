@@ -17,6 +17,7 @@ DISK_FLOOR_GB=30                     # janitor sweeps + panel banner when a watc
 #DISK_FLOOR_SWEEP_CMD=""             # site-specific extra cleanup, run only when the floor is breached
 LANE_CRASH_SECS=120                  # a failed batch faster than this counts as a crash
 LANE_CRASH_MAX=3                     # crashes in a row before the lane auto-disables (panel shows why)
+LOGIN_WARN_DAYS=3                    # janitor warns (NOTIFY_CMD) this many days before a Claude login expires
 JANITOR_STALE_HOURS=6                # hourly janitor releases claims older than this with no PR
 BLOCKED_LABEL="status/blocked"       # parked issues: workers can't finish them, a human must decide
 PARK_AFTER_CLAIMS=4                  # janitor parks a ready issue claimed this often with no PR

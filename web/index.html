@@ -604,8 +604,12 @@ function accountsPane() {
     const secs = a.resets_at ? a.resets_at - NOW : null;
     const expected = secs != null ? Math.max(0, Math.min(100, 100 * (1 - secs/WEEK))) : null;
     const drift = (a.used_pct != null && expected != null) ? expected - a.used_pct : null;
-    const cls = drift == null ? "dim" : drift > 10 ? "warn" : drift < -10 ? "bad" : "ok";
-    const driftTxt = a.no_usage_api ? (a.connected ? "connected — no usage API" : "not logged in")
+    const cls = a.logged_out ? "bad" : drift == null ? "dim" : drift > 10 ? "warn" : drift < -10 ? "bad" : "ok";
+    const reloginLeft = a.relogin_by ? a.relogin_by - NOW : null;
+    const reloginTxt = reloginLeft != null && !a.logged_out
+      ? ` · <span class="${reloginLeft < 5*86400 ? "warn" : "dim"}">re-login by ${new Date(a.relogin_by*1000).toLocaleDateString([], {month:"short", day:"numeric"})}</span>` : "";
+    const driftTxt = a.logged_out ? "logged out — re-login needed"
+      : a.no_usage_api ? (a.connected ? "connected — no usage API" : "not logged in")
       : drift == null ? "no data"
       : Math.abs(drift) < 1 ? "on pace"
       : drift > 0 ? `${drift.toFixed(0)}% behind pace` : `${(-drift).toFixed(0)}% ahead of pace`;
@@ -618,9 +622,9 @@ function accountsPane() {
         ${a.no_usage_api ? `<div class="sub" style="margin-top:6px">${a.connected ? "connected — no usage API" : "not logged in"}</div>`
           : `<div class="bar"><i class="${drift != null && drift < -10 ? "warn" : ""}" style="width:${a.used_pct ?? 0}%"></i>
              ${expected != null ? `<span class="pace" style="left:${expected}%" title="ideal pace ${expected.toFixed(0)}%"></span>` : ""}</div>`}
-        <div class="sub" style="margin-top:6px">resets in ${fmtDur(secs)}${esc(stale)}</div></div>
+        <div class="sub" style="margin-top:6px">${a.logged_out ? "lanes idle until re-login" : `resets in ${fmtDur(secs)}`}${esc(stale)}${reloginTxt}</div></div>
       <div style="text-align:right;flex:none">
-        <div class="lbl">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : a.no_usage_api ? (a.connected ? "✓" : "✗") : "–"}</div>
+        <div class="lbl">${a.used_pct != null ? a.used_pct.toFixed(1) + "%" : a.logged_out ? "✗" : a.no_usage_api ? (a.connected ? "✓" : "✗") : "–"}</div>
         <div class="sub" style="color:var(--${cls === "ok" ? "accent" : cls === "dim" ? "dim" : cls})">${driftTxt}</div>
         ${h5}
       </div>
