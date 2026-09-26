@@ -23,7 +23,7 @@ CODEX_NAME="Codex"
 IFS=';' read -ra ACCTS <<<"${STATUS_ACCOUNTS:-}"
 for a in "${ACCTS[@]}"; do
   IFS='|' read -r name kind path <<<"$a"
-  used="" resets=0 stale=0 h5=""
+  used="" resets=0 stale=0 h5="" relogin_by=0 logged_out=false
   if [ "$kind" = "grok" ]; then
     # Grok Build has no public usage API; usage-grok.sh scrapes the TUI's /usage
     # panel (weekly limit % + reset). Fall back to a plain connected marker.
@@ -42,6 +42,11 @@ for a in "${ACCTS[@]}"; do
   fi
   if [ "$kind" = "claude" ]; then
     DIR2NAME[$(dirname "$path")]=$name
+    # OAuth refresh tokens have a hard ~30-day life; surface the deadline and a
+    # logged-out state so a dead account is a visible warning, not "no data"
+    relogin_by=$(jq -r '.claudeAiOauth.refreshTokenExpiresAt // 0' "$path" 2>/dev/null || echo 0)
+    relogin_by=$(( ${relogin_by:-0} / 1000 ))
+    logged_out=false; [ -z "$(jq -r '.claudeAiOauth.accessToken // empty' "$path" 2>/dev/null)" ] && logged_out=true
     # usage-claude.sh self-heals stale tokens (idle accounts stop refreshing them),
     # so the card never shows "no data" for a merely-idle account
     if read -r u_pct u_secs u_h5 _ < <(CLAUDE_CREDENTIALS="$path" bash "$PKG_DIR/bin/usage-claude.sh" 2>/dev/null) && [ -n "${u_secs:-}" ]; then
@@ -77,7 +82,8 @@ for a in "${ACCTS[@]}"; do
   fi
   acc_rows+=("$(jq -n --arg name "$name" --arg kind "$kind" --arg used "${used:-}" \
     --argjson resets "${resets:-0}" --argjson stale "${stale:-0}" --arg h5 "${h5:-}" \
-    '{name:$name, kind:$kind,
+    --argjson relogin "${relogin_by:-0}" --argjson logged_out "${logged_out:-false}" \
+    '{name:$name, kind:$kind, relogin_by:(if $relogin==0 then null else $relogin end), logged_out:$logged_out,
       used_pct:(if $used=="" then null else ($used|tonumber) end),
       resets_at:(if $resets==0 then null else $resets end),
       five_hour_pct:(if $h5=="" then null else ($h5|tonumber) end),

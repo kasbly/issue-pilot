@@ -106,4 +106,29 @@ else
   rm -f "$STATE_DIR/disk-low"
 fi
 
+
+# --- Claude login expiry ------------------------------------------------------
+# Refresh tokens expire ~30 days after login regardless of use; an expired one
+# silently idles every window lane on that account. Warn ahead (once per day)
+# and shout when an account is already logged out.
+for entry in ${CLAUDE_ACCOUNTS:-}; do
+  a_name=${entry%%:*}; a_dir=${entry#*:}; creds="$a_dir/.credentials.json"
+  [ -f "$creds" ] || continue
+  tok=$(jq -r '.claudeAiOauth.accessToken // empty' "$creds" 2>/dev/null || true)
+  exp=$(jq -r '.claudeAiOauth.refreshTokenExpiresAt // 0' "$creds" 2>/dev/null || echo 0); exp=$(( ${exp:-0} / 1000 ))
+  stamp="$STATE_DIR/login-warned-$a_name"
+  if [ -z "$tok" ]; then
+    msg="Claude account '$a_name' is LOGGED OUT — its lanes are idle until you re-login"
+  elif [ "$exp" -gt 0 ] && [ $(( exp - $(date +%s) )) -lt $(( ${LOGIN_WARN_DAYS:-3} * 86400 )) ]; then
+    msg="Claude account '$a_name' login expires $(date -d @"$exp" '+%b %-d %H:%M') — re-login before then"
+  else
+    rm -f "$stamp"; continue
+  fi
+  if [ ! -f "$stamp" ] || [ $(( $(date +%s) - $(stat -c %Y "$stamp") )) -ge 86400 ]; then
+    log "janitor: $msg"
+    [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: $msg" bash -c "$NOTIFY_CMD" || true; }
+    touch "$stamp"
+  fi
+done
+
 exit 0
