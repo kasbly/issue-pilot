@@ -604,7 +604,10 @@ function accountsPane() {
   // line) first; accounts without a readable line sort last
   const headroom = a => (a.used_pct == null || !a.resets_at) ? -Infinity
     : Math.max(0, Math.min(100, 100 * (1 - (a.resets_at - NOW)/WEEK))) - a.used_pct;
-  const rows = [...(S.accounts || [])].sort((x, y) => headroom(y) - headroom(x)).map(a => {
+  // always-on lanes' accounts first (burn-first by definition), then by headroom
+  const alwaysAcct = new Set((S.lanes || []).filter(l => l.mode === "always").map(l => l.label));
+  const tier = a => alwaysAcct.has(a.name) ? 1 : 0;
+  const rows = [...(S.accounts || [])].sort((x, y) => (tier(y) - tier(x)) || (headroom(y) - headroom(x))).map(a => {
     const secs = a.resets_at ? a.resets_at - NOW : null;
     const expected = secs != null ? Math.max(0, Math.min(100, 100 * (1 - secs/WEEK))) : null;
     const drift = (a.used_pct != null && expected != null) ? expected - a.used_pct : null;

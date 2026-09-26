@@ -117,8 +117,12 @@ done
 # first, so slots keep rotating toward the lowest-usage account instead of a fixed
 # ranking burning one provider ahead of pace. Unknown usage scores 0; ties keep
 # LANES order (sort -s is stable).
-alloc_order=$(for id in ${LANES:-}; do eval "printf '%s %s\n' \"\${prio_$id:-0}\" \"$id\""; done \
-  | sort -s -rn -k1,1 | awk '{print $2}')
+# always-on lanes are burn-first by definition: rank them above every window lane
+# (a fixed workhorse should never wait behind a pace follower), then by headroom
+alloc_order=$(for id in ${LANES:-}; do
+    tier=0; [ "$(lane_get "$id" MODE off)" = "always" ] && tier=1
+    eval "printf '%s %s %s\n' \"$tier\" \"\${prio_$id:-0}\" \"$id\""
+  done | sort -s -k1,1nr -k2,2nr | awk '{print $3}')
 log "allocation order (most pace headroom first): $(echo $alloc_order)"
 echo $alloc_order >"$STATE_DIR/alloc-order" # panel shows lanes in this order
 
