@@ -27,11 +27,16 @@ age=999999
 [ -n "$snap_file" ] && age=$(( $(date +%s) - $(stat -c %Y "$snap_file" 2>/dev/null || echo 0) ))
 if [ "$age" -gt "${CODEX_SNAPSHOT_MAX_AGE:-10800}" ]; then
   echo "usage-codex: snapshot ${age}s old — pinging codex to refresh" >&2
-  (cd /tmp && timeout 120 codex exec "Reply with exactly: OK" >/dev/null 2>&1) || true
+  # newer codex refuses to run outside a trusted/git dir without this flag
+  (cd /tmp && timeout 120 codex exec --skip-git-repo-check "Reply with exactly: OK" </dev/null >/dev/null 2>&1) || true
   newest_snap
 fi
-pct=$(grep -o '"used_percent":[0-9.]*' <<<"$snap" | head -1 | cut -d: -f2)
-resets=$(grep -o '"resets_at":[0-9]*' <<<"$snap" | head -1 | cut -d: -f2)
+# the WEEKLY window (window_minutes 10080) is what pacing is about; current codex
+# builds list the 5-hour window first, so never take "the first percent"
+wk=$(grep -o '"[a-z]*":{"used_percent":[0-9.]*,"window_minutes":10080,"resets_at":[0-9]*}' <<<"$snap" | head -1 || true)
+pct=$(grep -o '"used_percent":[0-9.]*' <<<"${wk:-$snap}" | head -1 | cut -d: -f2)
+resets=$(grep -o '"resets_at":[0-9]*' <<<"${wk:-$snap}" | head -1 | grep -o "[0-9]*$")
+[ -z "$pct" ] && case "$snap" in *'"primary":null'*) pct=100 ;; esac
 [ -n "$pct" ] && [ -n "$resets" ] || { echo "usage-codex: no rate_limits snapshot found" >&2; exit 1; }
 
 secs=$(( resets - $(date +%s) )); [ "$secs" -gt 0 ] || secs=0
