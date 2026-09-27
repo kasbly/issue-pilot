@@ -63,7 +63,12 @@ fi
 # fill a 1.2T disk) with no open files, then prune the clone's worktree registry.
 wt_removed=0
 for d in ${TMP_SWEEP_GLOBS:-/tmp/pilot-* /tmp/promote-*}; do
-  [ -d "$d" ] || continue
+  [ -e "$d" ] || continue
+  # loose files (install/push logs a worker left beside its worktree) age out too
+  if [ -f "$d" ]; then
+    [ $(( $(date +%s) - $(stat -c %Y "$d") )) -gt $(( ${JANITOR_WORKTREE_HOURS:-6} * 3600 )) ] && rm -f "$d"
+    continue
+  fi
   age=$(( $(date +%s) - $(stat -c %Y "$d" 2>/dev/null || date +%s) ))
   [ "$age" -gt $(( ${JANITOR_WORKTREE_HOURS:-6} * 3600 )) ] || continue
   lsof -t +d "$d" >/dev/null 2>&1 && continue
