@@ -21,7 +21,7 @@ LOGIN_WARN_DAYS=3                    # janitor warns (NOTIFY_CMD) this many days
 JANITOR_STALE_HOURS=6                # hourly janitor releases claims older than this with no PR
 BLOCKED_LABEL="status/blocked"       # parked issues: workers can't finish them, a human must decide
 PARK_AFTER_CLAIMS=4                  # janitor parks a ready issue claimed this often with no PR
-JANITOR_WORKTREE_HOURS=48            # ...and deletes pilot/promote worktrees untouched this long
+JANITOR_WORKTREE_HOURS=6             # hourly janitor removes idle batch worktrees older than this (lsof-guarded)
 # Command that generates new issues (your scanner pipeline). Runs from ISSUE_PILOT_HOME.
 # Issue quality is the foundation of the whole loop — use a strong model here.
 SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"

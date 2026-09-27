@@ -58,13 +58,14 @@ if [ "$parked" -gt 0 ] && [ -n "${NOTIFY_CMD:-}" ]; then
 fi
 
 # Leaked worktrees: prompts tell workers to clean up, but killed batches can't.
-# Remove pilot/promote worktrees untouched for JANITOR_WORKTREE_HOURS (default 48)
-# with no open files, then prune the clone's worktree registry.
+# Remove pilot/promote worktrees untouched for JANITOR_WORKTREE_HOURS (default 6 —
+# no healthy worker holds one longer; at a few GB each, 48h let ~200 pile up and
+# fill a 1.2T disk) with no open files, then prune the clone's worktree registry.
 wt_removed=0
 for d in ${TMP_SWEEP_GLOBS:-/tmp/pilot-* /tmp/promote-*}; do
   [ -d "$d" ] || continue
   age=$(( $(date +%s) - $(stat -c %Y "$d" 2>/dev/null || date +%s) ))
-  [ "$age" -gt $(( ${JANITOR_WORKTREE_HOURS:-48} * 3600 )) ] || continue
+  [ "$age" -gt $(( ${JANITOR_WORKTREE_HOURS:-6} * 3600 )) ] || continue
   lsof -t +d "$d" >/dev/null 2>&1 && continue
   rm -rf "$d" && { log "janitor: removed stale worktree $d ($(( age / 3600 ))h old)"; wt_removed=$((wt_removed + 1)); }
 done
