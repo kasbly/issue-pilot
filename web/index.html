@@ -636,6 +636,9 @@ function accountsPane() {
         ${h5}
       </div>
     </div>`; }).join("");
+  const cliRows = (S.clis || []).map(c => `
+    <div class="row"><span class="lbl grow">${esc(c.name)}</span><span class="tag">${esc(c.version)}</span>
+      <span class="sub" style="flex:none;margin-left:10px">checked ${fmtDur(NOW - c.checked_at)} ago</span></div>`).join("");
   const resting = (S.accounts || []).filter(a => a.used_pct != null && a.resets_at &&
     a.used_pct > Math.max(0, Math.min(100, 100 * (1 - (a.resets_at - NOW)/WEEK)))).length;
   return `
@@ -643,7 +646,8 @@ function accountsPane() {
     <div class="headline">${(S.accounts||[]).length} subscription${(S.accounts||[]).length === 1 ? "" : "s"} paced across the billing period — lanes rest when a subscription runs ahead.</div>
     <div class="now"><span class="pulse" style="background:${resting > 0 ? "var(--warn)" : "var(--accent)"}"></span>Right now: ${resting > 0 ? `${resting} account${resting === 1 ? " is" : "s are"} ahead of pace and resting` : "everyone is on or behind pace"}</div>
     ${previewBox("Nothing to change here — pace targets come from each plan's billing period. The white tick on each bar is the ideal-pace line.")}
-    <div class="section"><h3>Subscriptions</h3><div class="rows">${rows || `<div class="row"><span class="sub">no accounts configured</span></div>`}</div></div>`;
+    <div class="section"><h3>Subscriptions</h3><div class="rows">${rows || `<div class="row"><span class="sub">no accounts configured</span></div>`}</div></div>
+    ${cliRows ? `<div class="section"><h3>Agent CLIs · kept current by the janitor</h3><div class="rows">${cliRows}</div></div>` : ""}`;
 }
 
 function needsPane() {

@@ -137,4 +137,29 @@ for entry in ${CLAUDE_ACCOUNTS:-}; do
   fi
 done
 
+# --- Agent CLI updates --------------------------------------------------------
+# Agent CLIs ship weekly and a stale one quietly loses models (Claude Code
+# 2.1.258 did not know claude-opus-5-5). Once per CLI_UPDATE_HOURS run each
+# CLI_UPDATE_<name> (an idempotent "install latest"), then record what
+# CLI_VERSION_<name> reports; a change is logged, notified, and shown on the panel.
+# ponytail: no idle gate — npm swaps the package dir and grok swaps a symlink, so
+# a CLI that is already running keeps its old inode until it exits.
+cli_ver() { bash -c "$1" 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true; }
+cli_stamp="$STATE_DIR/cli-updated"
+if [ -n "${CLIS:-}" ] && { [ ! -f "$cli_stamp" ] || [ $(( $(date +%s) - $(stat -c %Y "$cli_stamp") )) -ge $(( ${CLI_UPDATE_HOURS:-24} * 3600 )) ]; }; then
+  touch "$cli_stamp"
+  for c in $CLIS; do
+    ver_var="CLI_VERSION_$c"; upd_var="CLI_UPDATE_$c"
+    ver_cmd="${!ver_var:-$c --version}"; upd_cmd="${!upd_var:-}"
+    before=$(cli_ver "$ver_cmd")
+    [ -n "$upd_cmd" ] && { bash -c "$upd_cmd" >>"$STATE_DIR/cli-update.log" 2>&1 || log "janitor: $c update command failed (see state/cli-update.log)"; }
+    after=$(cli_ver "$ver_cmd")
+    echo "${after:-?}" >"$STATE_DIR/cli-version-$c"
+    if [ -n "$after" ] && [ "$after" != "$before" ]; then
+      log "janitor: updated $c ${before:-?} → $after"
+      [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: updated $c ${before:-?} → $after" bash -c "$NOTIFY_CMD" || true; }
+    fi
+  done
+fi
+
 exit 0

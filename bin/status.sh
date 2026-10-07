@@ -352,6 +352,13 @@ cr_p=true; [ -f "$STATE_DIR/claude-role-promote.disabled" ] && cr_p=false
 claude_roles=$(jq -n --argjson i "$cr_i" --argjson s "$cr_s" --argjson p "$cr_p" \
   '{issues:$i, scanner:$s, promote:$p}')
 
+clis='[]'
+for f in "$STATE_DIR"/cli-version-*; do
+  [ -f "$f" ] || continue
+  clis=$(jq -c --arg n "${f##*/cli-version-}" --arg v "$(cat "$f")" --argjson t "$(stat -c %Y "$f")" \
+    '. + [{name:$n, version:$v, checked_at:$t}]' <<<"$clis")
+done
+
 join_json "${acc_rows[@]}" | jq \
   --argjson gen "$now" --arg dispatch "$dispatch" --argjson paused "$sys_paused" \
   --argjson resources "$resources" \
@@ -359,10 +366,10 @@ join_json "${acc_rows[@]}" | jq \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
-  --argjson announce "$announce" --argjson claude_roles "$claude_roles" --argjson spend "$spend" \
+  --argjson announce "$announce" --argjson claude_roles "$claude_roles" --argjson spend "$spend" --argjson clis "$clis" \
   --argjson scanners "$(join_json "${scan_rows[@]}")" --argjson campaign "$campaign" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, paused:$paused, accounts:., lanes:$lanes, workers:$workers,
     resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
-    announce:$announce, claude_roles:$claude_roles, spend:$spend, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
+    announce:$announce, claude_roles:$claude_roles, spend:$spend, clis:$clis, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json
