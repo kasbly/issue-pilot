@@ -26,16 +26,24 @@ born red, so nothing matters more than this issue.
 FIRST — adopt this lane's abandoned red or conflicting PRs before claiming
 anything new: list open PRs whose head branch starts with `$LANE_SLUG/` and that
 have failing checks or merge conflicts. Skip any whose checks are currently
-queued or running — a fresh run is already in flight. For each adopted PR,
+queued or running — a fresh run is already in flight. Skip DRAFT PRs: the
+janitor parks a PR as a draft when workers kept blaming the base for its own
+failure — a human owns it now. For each adopted PR,
 assign a subagent (these count toward $BATCH_SIZE). A rebase costs a full CI
 run, so spend it only when it can change the outcome: rebase onto fresh
 `origin/$BASE_BRANCH` and push ONLY if the base gained commits after the PR's
 failing run started, or the PR has conflicts. If the base has not moved, the
 failure is this PR's own bug — fix the code directly (the fix push is the CI
-run), never rebase first. If the same
-check fails on other lanes' PRs too, the base branch itself is likely broken: do
-NOT patch unrelated tests inside your PR; comment `blocked by base breakage` on
-the PR and move on. Never leave a red PR without a comment saying why.
+run), never rebase first. `blocked by base breakage` is a verdict with a burden
+of proof, not an exit: write it ONLY when an open "[CI] Base breakage suspected"
+issue exists, or the same check is red on at least two OTHER lanes' open PRs AND
+no pilot PR has gone green on this base in the last 3 hours. A green sibling PR
+means the base is fine and the failure is yours — a test you added that renders
+in a loop, a snapshot you changed, a guard you tripped — so fix it. If the PR
+already carries that verdict, do not write it again: the janitor parks it for a
+human. When the base IS broken: do NOT patch unrelated tests inside your PR;
+comment `blocked by base breakage` and move on. Never leave a red PR without a
+comment saying why.
 
 LOOP — repeat until $BATCH_SIZE issues are done or the queue is empty:
 

@@ -57,6 +57,30 @@ if [ "$parked" -gt 0 ] && [ -n "${NOTIFY_CMD:-}" ]; then
   MSG="issue-pilot: janitor parked $parked looping issue(s) as $blocked" bash -c "$NOTIFY_CMD" || true
 fi
 
+# Base-breakage verdict abuse: a worker that cannot make its PR green can write
+# "blocked by base breakage" and walk away; the next batch adopts the PR, rebases,
+# burns a CI run, and writes it again — twelve rounds on one PR before a human
+# noticed. The base-red flag (pr-doctor) is the only evidence that verdict may rest
+# on. With no flag and BASE_BLOCK_MAX such verdicts, the failure is the PR's own:
+# park it as a draft (lanes skip drafts), park its issue, and tell a human.
+if [ ! -f "$STATE_DIR/base-red" ]; then
+  bb_max="${BASE_BLOCK_MAX:-2}"
+  # only PRs that are red right now: a fix push resets the rollup, and a PR whose
+  # checks are queued, running, or green has nothing to park
+  for row in $(gh pr list -R "$GH_REPO" --state open --limit 100 --json number,headRefName,isDraft,comments,statusCheckRollup \
+      --jq '.[] | select(.isDraft | not) | select(.headRefName | startswith("'"${PR_DOCTOR_PREFIX:-pilot-}"'"))
+            | select([.statusCheckRollup[]? | select(.conclusion == "FAILURE")] | length > 0)
+            | "\(.number):\(.headRefName):\([.comments[] | select(.body | ascii_downcase | contains("blocked by base breakage"))] | length)"' 2>/dev/null \
+      | awk -F: -v m="$bb_max" '$3 >= m {print $1 ":" $2}'); do
+    pr=${row%%:*}; head=${row#*:}; issue=${head##*issue-}
+    gh pr ready "$pr" -R "$GH_REPO" --undo >/dev/null 2>&1 || continue
+    gh pr comment "$pr" -R "$GH_REPO" --body "Blocked: parked by issue-pilot — workers wrote \`blocked by base breakage\` $bb_max+ times while no base-breakage issue is open, so the failure is this PR's own. Converted to draft (lanes skip drafts); a maintainer must fix or close it, then mark it ready for review." >/dev/null 2>&1 || true
+    case "$issue" in ""|*[!0-9]*) ;; *) gh issue edit "$issue" -R "$GH_REPO" --remove-label "$READY_LABEL,$CLAIM_LABEL" --add-label "$blocked" >/dev/null 2>&1 || true ;; esac
+    log "janitor: parked PR #$pr as draft ($bb_max+ base-breakage verdicts while the base is green)"
+    [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: parked PR #$pr as draft — workers blamed the base $bb_max+ times but the base is green; it needs a human" bash -c "$NOTIFY_CMD" || true; }
+  done
+fi
+
 # Leaked worktrees: prompts tell workers to clean up, but killed batches can't.
 # Remove pilot/promote worktrees untouched for JANITOR_WORKTREE_HOURS (default 6 —
 # no healthy worker holds one longer; at a few GB each, 48h let ~200 pile up and

@@ -27,6 +27,7 @@ CLI_UPDATE_HOURS=24                  # janitor re-installs the agent CLIs this o
 JANITOR_STALE_HOURS=6                # hourly janitor releases claims older than this with no PR
 BLOCKED_LABEL="status/blocked"       # parked issues: workers can't finish them, a human must decide
 PARK_AFTER_CLAIMS=4                  # janitor parks a ready issue claimed this often with no PR
+BASE_BLOCK_MAX=2                     # janitor parks a PR (draft + issue blocked) after this many "blocked by base breakage" verdicts with no base-red flag
 JANITOR_WORKTREE_HOURS=6             # hourly janitor removes idle batch worktrees older than this (lsof-guarded)
 # Command that generates new issues (your scanner pipeline). Runs from ISSUE_PILOT_HOME.
 # Issue quality is the foundation of the whole loop — use a strong model here.
