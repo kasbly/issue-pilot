@@ -359,6 +359,16 @@ for f in "$STATE_DIR"/cli-version-*; do
     '. + [{name:$n, version:$v, checked_at:$t}]' <<<"$clis")
 done
 
+# the Codex CLI caches the model catalog its account is offered; surface the
+# listed slugs (newest first) so the panel's chips never go stale behind a release
+codex_models='[]'
+for entry in ${CODEX_ACCOUNTS:-}; do
+  mc="${entry#*:}/models_cache.json"
+  [ -f "$mc" ] || continue
+  codex_models=$(jq -c --argjson cur "$codex_models" \
+    '$cur + ([.models[]? | select(.visibility == "list")] | sort_by(.priority) | map(.slug)) | unique' "$mc" 2>/dev/null || echo "$codex_models")
+done
+
 join_json "${acc_rows[@]}" | jq \
   --argjson gen "$now" --arg dispatch "$dispatch" --argjson paused "$sys_paused" \
   --argjson resources "$resources" \
@@ -366,10 +376,10 @@ join_json "${acc_rows[@]}" | jq \
   --argjson lanes "$(join_json "${lane_rows[@]}")" \
   --argjson claimed "$claimed" \
   --argjson refill "$refill" --argjson throughput "$throughput" --argjson promotion "$promotion" \
-  --argjson announce "$announce" --argjson claude_roles "$claude_roles" --argjson spend "$spend" --argjson clis "$clis" \
+  --argjson announce "$announce" --argjson claude_roles "$claude_roles" --argjson spend "$spend" --argjson clis "$clis" --argjson codex_models "$codex_models" \
   --argjson scanners "$(join_json "${scan_rows[@]}")" --argjson campaign "$campaign" \
   --argjson prs "$(jq '[.[:8][] | {number,title,url,createdAt}]' <<<"$all_prs")" \
   '{generated_at:$gen, dispatch:$dispatch, paused:$paused, accounts:., lanes:$lanes, workers:$workers,
     resources:$resources, refill:$refill, throughput:$throughput, promotion:$promotion,
-    announce:$announce, claude_roles:$claude_roles, spend:$spend, clis:$clis, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
+    announce:$announce, claude_roles:$claude_roles, spend:$spend, clis:$clis, codex_models:$codex_models, scanners:$scanners, campaign:$campaign, claimed:$claimed, recent_prs:$prs}' \
   >web/status.json.tmp && mv web/status.json.tmp web/status.json
