@@ -197,7 +197,33 @@ if [ -n "$pf" ] && [ -f "$pf" ]; then
   { printf '<!-- sent %s · %s · %s -->\n' "$scan_start_iso" "$run_via" "$pf"
     envsubst <"$pf"; } >"$STATE_DIR/prompts/${SCANNER_DIMENSION:-scan}.sent.md" 2>/dev/null || true
 fi
-bash -c "$RUN_CMD"
+rc=0; bash -c "$RUN_CMD" || rc=$?
+# An instant failure is the engine, not the scan: an exhausted balance (Grok 402),
+# a revoked login, a broken CLI. Re-run the same dimension on the fallback engine
+# instead of losing the hour — forty silent dead hours once drained the queue to 0
+# while every lane sat idle. If that fails too, say so (NOTIFY_CMD, once per 6h).
+if [ "$rc" -ne 0 ] && [ $(( $(date +%s) - scan_start )) -lt "${SCANNER_CRASH_SECS:-120}" ]; then
+  why="scanner ${SCANNER_DIMENSION:-scan} crashed after $(( $(date +%s) - scan_start ))s on $run_via (exit $rc)"
+  if [ -n "${SCANNER_FALLBACK_CMD:-}" ] && [ "$RUN_CMD" != "$SCANNER_FALLBACK_CMD" ] \
+     && read -r fb_name fb_home < <(bash "$PKG_DIR/bin/pick-codex-account.sh" 2>/dev/null) && [ -n "${fb_home:-}" ]; then
+    log "$why — retrying on Codex account '$fb_name'"
+    export CODEX_HOME="$fb_home"
+    export SCANNER_RUN_MODEL="${SCANNER_FALLBACK_MODEL:-$SCANNER_RUN_MODEL}"
+    export SCANNER_RUN_EFFORT="${SCANNER_FALLBACK_EFFORT:-$SCANNER_RUN_EFFORT}"
+    RUN_CMD="$SCANNER_FALLBACK_CMD"; run_via="codex $SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
+    scan_start=$(date +%s); rc=0; bash -c "$RUN_CMD" || rc=$?
+  fi
+  if [ "$rc" -ne 0 ]; then
+    stamp="$STATE_DIR/scanner-crash-warned"
+    if [ ! -f "$stamp" ] || [ $(( $(date +%s) - $(stat -c %Y "$stamp") )) -ge 21600 ]; then
+      [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: $why — the queue is not being refilled" bash -c "$NOTIFY_CMD" || true; }
+      touch "$stamp"
+    fi
+    echo "$(date +%s) crashed queue=$count via $run_via" >"$STATE_DIR/refill-last"
+    log "$why — giving up this hour"
+    exit 1
+  fi
+fi
 bash "$PKG_DIR/bin/cost-log.sh" scanner "${SCANNER_DIMENSION:-scan}" "$scan_start" "$run_via" "$SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT" || true
 # record when this dimension last ran and how many issues that run filed
 if [ -n "${SCANNER_DIMENSION:-}" ]; then
