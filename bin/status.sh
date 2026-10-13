@@ -366,7 +366,10 @@ for entry in ${CODEX_ACCOUNTS:-}; do
   mc="${entry#*:}/models_cache.json"
   [ -f "$mc" ] || continue
   codex_models=$(jq -c --argjson cur "$codex_models" \
-    '$cur + ([.models[]? | select(.visibility == "list")] | sort_by(.priority) | map(.slug)) | unique' "$mc" 2>/dev/null || echo "$codex_models")
+    '$cur + ([.models[]? | select(.visibility == "list")
+                 # ponytail: the catalog has no "current" flag; its own prose marks the superseded ones
+                 | select((.description // "") | test("Older|Legacy|Previous") | not)]
+              | sort_by(.priority) | map(.slug)) | unique' "$mc" 2>/dev/null || echo "$codex_models")
 done
 
 join_json "${acc_rows[@]}" | jq \
