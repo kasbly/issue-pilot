@@ -132,7 +132,9 @@ export LEDGER_FILE="$STATE_DIR/scan-ledger.md"
 if [ -f "$LEDGER_FILE" ]; then
   tail -n 400 "$LEDGER_FILE" >"$LEDGER_FILE.tmp" && mv "$LEDGER_FILE.tmp" "$LEDGER_FILE"
 fi
-export SCAN_LEDGER="$(tail -n 120 "$LEDGER_FILE" 2>/dev/null || echo '(no previous runs)')"
+# ponytail: 30 lines ≈ the last three runs. 120 turned the ledger into the agenda —
+# every run chased the previous run's leftovers and filed nothing new.
+export SCAN_LEDGER="$(tail -n 30 "$LEDGER_FILE" 2>/dev/null || echo '(no previous runs)')"
 
 export GH_REPO READY_LABEL BASE_BRANCH="${BASE_BRANCH:-main}" REPO_DIR="${REPO_DIR:-$ISSUE_PILOT_HOME/repo}"
 export ERROR_LOG_CMD="${ERROR_LOG_CMD:-}" CAMPAIGN_LOGIN_EMAIL="${CAMPAIGN_LOGIN_EMAIL:-}" CAMPAIGN_LOGIN_PASSWORD="${CAMPAIGN_LOGIN_PASSWORD:-}"

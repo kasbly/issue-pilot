@@ -15,7 +15,18 @@ PREVIOUS RUNS' LEDGER (recent tail, oldest first):
 $SCAN_LEDGER
 
 Use the ledger: never re-investigate a candidate a previous run explicitly ruled
-out; follow up any leads it left. AT THE END OF EVERY RUN (mandatory, even with
+out; follow up any leads it left. The ledger is memory, not the agenda: a
+"leftover" (a closed issue whose fix missed a sibling path) is derivative work —
+file AT MOST ONE leftover per run, and only after the hunt for NEW findings is
+done. Do not spend the run re-verifying closed issues; their lanes' CI already
+did. A run that finds nothing new says so in the ledger and stops — a zero is an
+honest result, a leftover is not a substitute for one.
+
+A FOCUS that begins with `LENS:` is a cross-cutting read: apply that ONE failure
+mode across the stated scope (grep for the pattern, then read every hit in
+context) instead of reading one module end to end.
+
+AT THE END OF EVERY RUN (mandatory, even with
 zero issues filed) append to $LEDGER_FILE a block of AT MOST 12 lines:
 
 ## <utc date> $SCANNER_DIMENSION focus=<focus or all>

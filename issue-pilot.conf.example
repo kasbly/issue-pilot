@@ -57,6 +57,9 @@ SCANNER_CMD="echo 'no scanner configured' >&2; exit 1"
 # (ci-health, prod-errors, ...) should NOT be listed in SCANNER_FOCUS_DIMS.
 #SCANNER_FOCUS_DIMS="bugs security test-gaps product-gap performance"
 #SCANNER_FOCUS_AREAS="src/api,src/web,packages/shared,scripts and tooling"
+# Entries may be prose. One starting with "LENS:" is a cross-cutting read (one failure
+# mode across a scope) — mix a few in between module entries so the ring alternates
+# location passes with lens passes; a module re-read finds what the last re-read found.
 # Run ledger: refill exports $SCAN_LEDGER (recent tail) and $LEDGER_FILE to the
 # prompt; the scanner template appends what each run examined / ruled out / left
 # as leads, giving otherwise-stateless runs memory. No keys to set — automatic.
