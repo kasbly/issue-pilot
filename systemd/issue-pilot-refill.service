@@ -5,5 +5,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+# backstop for a scan that ignores the in-script cap: kill the whole cgroup
+TimeoutStartSec=2h
 Environment=ISSUE_PILOT_HOME=/opt/issue-pilot
 ExecStart=/usr/bin/env bash /opt/issue-pilot/bin/refill.sh

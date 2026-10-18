@@ -199,7 +199,7 @@ if [ -n "$pf" ] && [ -f "$pf" ]; then
   { printf '<!-- sent %s · %s · %s -->\n' "$scan_start_iso" "$run_via" "$pf"
     envsubst <"$pf"; } >"$STATE_DIR/prompts/${SCANNER_DIMENSION:-scan}.sent.md" 2>/dev/null || true
 fi
-rc=0; bash -c "$RUN_CMD" || rc=$?
+rc=0; timeout -k 60 "${SCANNER_MAX_SECS:-5400}" bash -c "$RUN_CMD" || rc=$?
 # An instant failure is the engine, not the scan: an exhausted balance (Grok 402),
 # a revoked login, a broken CLI. Re-run the same dimension on the fallback engine
 # instead of losing the hour — forty silent dead hours once drained the queue to 0
@@ -213,7 +213,7 @@ if [ "$rc" -ne 0 ] && [ $(( $(date +%s) - scan_start )) -lt "${SCANNER_CRASH_SEC
     export SCANNER_RUN_MODEL="${SCANNER_FALLBACK_MODEL:-$SCANNER_RUN_MODEL}"
     export SCANNER_RUN_EFFORT="${SCANNER_FALLBACK_EFFORT:-$SCANNER_RUN_EFFORT}"
     RUN_CMD="$SCANNER_FALLBACK_CMD"; run_via="codex $SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
-    scan_start=$(date +%s); rc=0; bash -c "$RUN_CMD" || rc=$?
+    scan_start=$(date +%s); rc=0; timeout -k 60 "${SCANNER_MAX_SECS:-5400}" bash -c "$RUN_CMD" || rc=$?
   fi
   if [ "$rc" -ne 0 ]; then
     stamp="$STATE_DIR/scanner-crash-warned"
@@ -225,6 +225,13 @@ if [ "$rc" -ne 0 ] && [ $(( $(date +%s) - scan_start )) -lt "${SCANNER_CRASH_SEC
     log "$why — giving up this hour"
     exit 1
   fi
+fi
+# A scan that never exits (grok once waited 33h on an MCP child after its last
+# turn) holds the refill lock and silently kills the whole hourly chain —
+# janitor, pr-doctor, merge-janitor, scanner. The cap above ends it; say so.
+if [ "$rc" -eq 124 ]; then
+  log "scanner ${SCANNER_DIMENSION:-scan} killed after ${SCANNER_MAX_SECS:-5400}s (hung, not slow) — issues it filed before that still count"
+  [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: scanner ${SCANNER_DIMENSION:-scan} hung and was killed after $(( ${SCANNER_MAX_SECS:-5400} / 60 )) min" bash -c "$NOTIFY_CMD" || true; }
 fi
 bash "$PKG_DIR/bin/cost-log.sh" scanner "${SCANNER_DIMENSION:-scan}" "$scan_start" "$run_via" "$SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT" || true
 # record when this dimension last ran and how many issues that run filed

@@ -727,6 +727,12 @@ function render() {
   $("#diskbanner") && ($("#diskbanner").outerHTML = "");
   if (dl && !UI.diskBannerGone) $("#banner").insertAdjacentHTML("beforebegin",
     `<div class="banner" id="diskbanner" style="border-color:var(--warn)">disk low — ${esc(dl)} <button class="bx" onclick="UI.diskBannerGone=true;render()">×</button></div>`);
+  // the hourly refill chain (janitor, pr-doctor, merge-janitor, scanner) writes
+  // refill-last every pass, even when it only skips — silence means it is stuck
+  const lastTs = ((S.refill || {}).last || {}).ts, staleH = lastTs ? (NOW - lastTs) / 3600 : 0;
+  $("#stalebanner") && ($("#stalebanner").outerHTML = "");
+  if (staleH > 3 && !UI.staleBannerGone) $("#banner").insertAdjacentHTML("beforebegin",
+    `<div class="banner" id="stalebanner" style="border-color:var(--warn)">hourly refill silent for ${staleH.toFixed(0)}h — no janitor, PR doctor or scanner pass has completed since ${new Date(lastTs*1000).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})}; a hung scan is probably holding the lock <button class="bx" onclick="UI.staleBannerGone=true;render()">×</button></div>`);
   $("#banner").innerHTML = ((S.refill || {}).base_red && !UI.bannerGone) ? `
     <div class="banner">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8L15 13.8H1L8 1.8z"/><path d="M8 6.5v3.2"/></svg>

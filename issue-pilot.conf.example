@@ -17,6 +17,7 @@ DISK_FLOOR_GB=30                     # janitor sweeps + panel banner when a watc
 #DISK_FLOOR_SWEEP_CMD=""             # site-specific extra cleanup, run only when the floor is breached
 LANE_CRASH_SECS=120                  # a failed batch faster than this counts as a crash
 SCANNER_CRASH_SECS=120               # a scanner that fails faster than this is an engine failure: re-run on SCANNER_FALLBACK_CMD, else NOTIFY_CMD
+SCANNER_MAX_SECS=5400                # hard cap per scan; a hung scanner otherwise holds the refill lock and stops the hourly chain
 LANE_CRASH_MAX=3                     # crashes in a row before the lane auto-disables (panel shows why)
 LOGIN_WARN_DAYS=3                    # janitor warns (NOTIFY_CMD) this many days before a Claude login expires
 CLI_UPDATE_HOURS=24                  # janitor re-installs the agent CLIs this often (idempotent "install latest"; version bumps are logged + NOTIFY_CMD)
