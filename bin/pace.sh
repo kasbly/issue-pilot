@@ -177,3 +177,19 @@ for id in ${LANES:-}; do
     MSG="issue-pilot: lane '$label' concurrency $prev -> $target" bash -c "$NOTIFY_CMD" || true
   fi
 done
+
+# The hourly refill chain writes state/refill-last on every pass, even a skipped
+# one. Silence means it is dead — a hung scan, a unit edit, a conf typo under
+# set -u — and the janitor cannot report it because the janitor runs inside it.
+# This loop is a separate unit, so it is the one that can shout. Once per 6h.
+rl=$(cut -d" " -f1 "$STATE_DIR/refill-last" 2>/dev/null || echo 0)
+if [ "${rl:-0}" -gt 0 ] && [ $(( $(date +%s) - rl )) -ge $(( ${REFILL_SILENT_HOURS:-3} * 3600 )) ]; then
+  stamp="$STATE_DIR/refill-silent-warned"
+  if [ ! -f "$stamp" ] || [ $(( $(date +%s) - $(stat -c %Y "$stamp") )) -ge 21600 ]; then
+    log "refill chain silent for $(( ($(date +%s) - rl) / 3600 ))h — check 'systemctl status issue-pilot-refill'"
+    [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: the hourly refill chain has been silent for $(( ($(date +%s) - rl) / 3600 ))h — no janitor, PR doctor or scanner pass; check systemctl status issue-pilot-refill" bash -c "$NOTIFY_CMD" || true; }
+    touch "$stamp"
+  fi
+else
+  rm -f "$STATE_DIR/refill-silent-warned"
+fi
