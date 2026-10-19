@@ -22,6 +22,16 @@ while true; do
         log "lane $id: target dropped to 0 — stopping running batch"
         kill -TERM -- "-${lane_pid[$id]}" 2>/dev/null || kill -TERM "${lane_pid[$id]}" 2>/dev/null || true
       fi
+      # A batch past LANE_MAX_SECS is hung, not busy (a grok session once sat a
+      # day on an MCP child after its last issue, and the lane took no new work
+      # the whole time). Kill the group; a signal exit never counts as a crash.
+      b_start=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
+      if [ "$b_start" -gt 0 ] && [ $(( $(date +%s) - b_start )) -gt "${LANE_MAX_SECS:-14400}" ]; then
+        log "lane $id: batch running $(( ($(date +%s) - b_start) / 60 ))m > LANE_MAX_SECS — killing it as hung"
+        [ -n "${NOTIFY_CMD:-}" ] && { MSG="issue-pilot: lane '$id' batch killed after $(( ($(date +%s) - b_start) / 3600 ))h (LANE_MAX_SECS) — it was hung, not working" bash -c "$NOTIFY_CMD" || true; }
+        kill -TERM -- "-${lane_pid[$id]}" 2>/dev/null || true; sleep 10
+        kill -KILL -- "-${lane_pid[$id]}" 2>/dev/null || true
+      fi
       continue
     fi
     wait "${lane_pid[$id]}" && st=0 || st=$?
