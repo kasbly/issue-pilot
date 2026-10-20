@@ -98,6 +98,7 @@ while read -r pid etimes rest; do
   env_lane=$(tr '\0' '\n' </proc/"$pid"/environ 2>/dev/null | sed -n 's/^LANE_NAME=//p')
   case "$rest" in
     *"codex exec"*) acct=${env_lane:-$CODEX_NAME} ;;
+    *"grok -p"*)    acct=${env_lane:-Grok} ;;
     *"claude -p"*)
       cfg=$(tr '\0' '\n' </proc/"$pid"/environ 2>/dev/null | sed -n 's/^CLAUDE_CONFIG_DIR=//p')
       acct=${env_lane:-${DIR2NAME[${cfg:-$HOME/.claude}]:-Claude}} ;;
@@ -115,7 +116,30 @@ while read -r pid etimes rest; do
   [ "$role" = "lane batch" ] && LIVE[$acct]=$(( ${LIVE[$acct]:-0} + 1 ))
   proc_rows+=("$(jq -n --arg a "$acct" --arg role "$role" --argjson pid "$pid" --argjson up "$etimes" \
     '{account:$a, role:$role, pid:$pid, uptime_secs:$up}')")
-done < <(ps -u "$(id -un)" -o pid=,etimes=,args= | grep -E 'claude -p|codex exec' | grep -v -e 'bash -c' -e grep)
+done < <(ps -u "$(id -un)" -o pid=,etimes=,args= | grep -E 'claude -p|codex exec|grok -p' | grep -v -e 'bash -c' -e grep)
+
+# grok runs its subagents in-process: ps shows ONE grok per batch while three
+# subagents work, so the lane read "idle · 0 of 6 workers live" all afternoon.
+# Count in-flight grok sessions from disk instead — a session whose event log was
+# written in the last 15 min and has not reached turn_ended. The batch's own
+# session is one of them, so subtract the live batches. Everything grok runs from
+# this cwd (scanner subagents too) lands on the grok lane's row: same account,
+# same bill, and that row is the only consumer.
+grok_sess="${GROK_HOME:-$HOME/.grok}/sessions/$(printf '%s' "$ISSUE_PILOT_HOME" | sed 's|/|%2F|g')"
+if [ -d "$grok_sess" ]; then
+  inflight=0
+  while IFS= read -r ev; do
+    [ -n "$ev" ] || continue
+    tail -n 1 "$ev" 2>/dev/null | grep -q '"type":"turn_ended"' || inflight=$((inflight + 1))
+  done < <(find "$grok_sess" -mindepth 2 -maxdepth 2 -name events.jsonl -mmin -15 2>/dev/null)
+  for id in ${LANES:-}; do
+    case "$(lane_get "$id" MODEL)" in grok-*) ;; *) continue ;; esac
+    glabel=$(lane_get "$id" LABEL "$id")
+    extra=$(( inflight - ${LIVE[$glabel]:-0} ))
+    [ "$extra" -gt 0 ] && LIVE[$glabel]=$(( ${LIVE[$glabel]:-0} + extra ))
+    break
+  done
+fi
 
 dispatch=$(systemctl is-active issue-pilot-dispatch.service 2>/dev/null || true)
 claimed=$(gh issue list -R "$GH_REPO" --state open --label "$CLAIM_LABEL" --json number,title,url 2>/dev/null || echo '[]')
