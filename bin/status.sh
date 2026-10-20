@@ -120,23 +120,18 @@ done < <(ps -u "$(id -un)" -o pid=,etimes=,args= | grep -E 'claude -p|codex exec
 
 # grok runs its subagents in-process: ps shows ONE grok per batch while three
 # subagents work, so the lane read "idle · 0 of 6 workers live" all afternoon.
-# Count in-flight grok sessions from disk instead — a session whose event log was
-# written in the last 15 min and has not reached turn_ended. The batch's own
-# session is one of them, so subtract the live batches. Everything grok runs from
-# this cwd (scanner subagents too) lands on the grok lane's row: same account,
-# same bill, and that row is the only consumer.
+# The batch's session records each subagent in subagents/<id>/meta.json with a
+# live "status": "running" (their own sessions are filed under the subagent's
+# cwd, not ours, so they cannot be found by directory). Count those, for batch
+# sessions touched in the last 3h, onto the grok lane's row.
 grok_sess="${GROK_HOME:-$HOME/.grok}/sessions/$(printf '%s' "$ISSUE_PILOT_HOME" | sed 's|/|%2F|g')"
 if [ -d "$grok_sess" ]; then
-  inflight=0
-  while IFS= read -r ev; do
-    [ -n "$ev" ] || continue
-    tail -n 1 "$ev" 2>/dev/null | grep -q '"type":"turn_ended"' || inflight=$((inflight + 1))
-  done < <(find "$grok_sess" -mindepth 2 -maxdepth 2 -name events.jsonl -mmin -15 2>/dev/null)
+  running=$(find "$grok_sess" -mindepth 3 -maxdepth 3 -path '*/subagents/*' -name meta.json -mmin -180 \
+    -exec grep -l '"status": *"running"' {} + 2>/dev/null | wc -l | tr -d ' ')
   for id in ${LANES:-}; do
     case "$(lane_get "$id" MODEL)" in grok-*) ;; *) continue ;; esac
     glabel=$(lane_get "$id" LABEL "$id")
-    extra=$(( inflight - ${LIVE[$glabel]:-0} ))
-    [ "$extra" -gt 0 ] && LIVE[$glabel]=$(( ${LIVE[$glabel]:-0} + extra ))
+    [ "${running:-0}" -gt 0 ] && LIVE[$glabel]=$(( ${LIVE[$glabel]:-0} + running ))
     break
   done
 fi
