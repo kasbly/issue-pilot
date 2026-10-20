@@ -126,7 +126,7 @@ done < <(ps -u "$(id -un)" -o pid=,etimes=,args= | grep -E 'claude -p|codex exec
 # sessions touched in the last 3h, onto the grok lane's row.
 grok_sess="${GROK_HOME:-$HOME/.grok}/sessions/$(printf '%s' "$ISSUE_PILOT_HOME" | sed 's|/|%2F|g')"
 if [ -d "$grok_sess" ]; then
-  running=$(find "$grok_sess" -mindepth 3 -maxdepth 3 -path '*/subagents/*' -name meta.json -mmin -180 \
+  running=$(find "$grok_sess" -mindepth 4 -maxdepth 4 -path '*/subagents/*' -name meta.json -mmin -180 \
     -exec grep -l '"status": *"running"' {} + 2>/dev/null | wc -l | tr -d ' ')
   for id in ${LANES:-}; do
     case "$(lane_get "$id" MODEL)" in grok-*) ;; *) continue ;; esac
