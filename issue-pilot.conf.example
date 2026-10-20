@@ -24,6 +24,8 @@ LANE_MAX_SECS=14400                  # a batch older than this is hung (not busy
 # Grok lanes/scanners: put `[compat.claude] mcps = false` + `hooks = false` in ~/.grok/config.toml.
 # Grok imports Claude Code's MCP servers from ~/.claude.json and a session that used one can
 # wait on that child forever at exit — a 33h scanner hang and a 23h lane hang came from this.
+# Also pass `--background-wait-timeout 600` to every `grok -p`: a headless grok run waits for the
+# background work its model started (CI watchers, subagents) before exiting, with no useful cap.
 LOGIN_WARN_DAYS=3                    # janitor warns (NOTIFY_CMD) this many days before a Claude login expires
 CLI_UPDATE_HOURS=24                  # janitor re-installs the agent CLIs this often (idempotent "install latest"; version bumps are logged + NOTIFY_CMD)
 #CLIS="claude codex grok"            # CLIs to keep current — each needs CLI_UPDATE_<name>; set CLI_VERSION_<name> when `<name> --version` isn't it
