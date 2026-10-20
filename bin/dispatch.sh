@@ -32,6 +32,24 @@ while true; do
       # A batch past LANE_MAX_SECS is hung, not busy (a grok session once sat a
       # day on an MCP child after its last issue, and the lane took no new work
       # the whole time). Kill the group; a signal exit never counts as a crash.
+      # grok-specific: a headless grok batch can finish its turn (every subagent
+      # done, summary printed) and then never exit — three hours idle on a futex,
+      # flag or no flag. Its session store says so plainly: the batch's own event
+      # log ends in turn_ended and nothing under this cwd has been written for
+      # LANE_DONE_IDLE_SECS. That is "done", so reap it instead of waiting for the
+      # hard cap below.
+      case "$(lane_get "$id" MODEL)" in grok-*)
+        gs="${GROK_HOME:-$HOME/.grok}/sessions/$(printf '%s' "$ISSUE_PILOT_HOME" | sed 's|/|%2F|g')"
+        newest=$(ls -td "$gs"/*/ 2>/dev/null | head -1)
+        if [ -n "$newest" ] && [ -f "$newest/events.jsonl" ] \
+           && tail -n 1 "$newest/events.jsonl" 2>/dev/null | grep -q '"type":"turn_ended"' \
+           && [ -z "$(find "$gs" -mindepth 2 -maxdepth 2 -name events.jsonl -mmin -$(( ${LANE_DONE_IDLE_SECS:-900} / 60 )) 2>/dev/null)" ]; then
+          log "lane $id: batch finished its turn $(( ($(date +%s) - $(stat -c %Y "$newest/events.jsonl")) / 60 ))m ago and never exited — reaping it"
+          kill -TERM -- "-${lane_pid[$id]}" 2>/dev/null || true; sleep 5
+          kill -KILL -- "-${lane_pid[$id]}" 2>/dev/null || true
+          continue
+        fi ;;
+      esac
       b_start=$(cat "$STATE_DIR/lane-$id.batch-started" 2>/dev/null || echo 0)
       if [ "$b_start" -gt 0 ] && [ $(( $(date +%s) - b_start )) -gt "${LANE_MAX_SECS:-14400}" ]; then
         log "lane $id: batch running $(( ($(date +%s) - b_start) / 60 ))m > LANE_MAX_SECS — killing it as hung"

@@ -6,6 +6,8 @@ After=network-online.target
 [Service]
 Environment=ISSUE_PILOT_HOME=/opt/issue-pilot
 ExecStart=/usr/bin/env bash /opt/issue-pilot/bin/dispatch.sh
+# batches are setsid'd and adopted on restart; a restart must not take them down
+KillMode=process
 Restart=always
 RestartSec=30
 

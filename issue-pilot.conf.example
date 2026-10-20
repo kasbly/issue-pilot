@@ -21,6 +21,7 @@ SCANNER_MAX_SECS=5400                # hard cap per scan; a hung scanner otherwi
 REFILL_SILENT_HOURS=3                # pace loop notifies (NOTIFY_CMD, once per 6h) when no refill pass has completed for this long
 LANE_CRASH_MAX=3                     # crashes in a row before the lane auto-disables (panel shows why)
 LANE_MAX_SECS=14400                  # a batch older than this is hung (not busy): dispatch kills it so the lane takes new work
+LANE_DONE_IDLE_SECS=900              # grok lanes: batch whose session ended its turn and wrote nothing for this long is done — reap it
 # Grok lanes/scanners: put `[compat.claude] mcps = false` + `hooks = false` in ~/.grok/config.toml.
 # Grok imports Claude Code's MCP servers from ~/.claude.json and a session that used one can
 # wait on that child forever at exit — a 33h scanner hang and a 23h lane hang came from this.
