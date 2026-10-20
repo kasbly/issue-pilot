@@ -130,6 +130,15 @@ next_refill=0
 nr=$(systemctl show issue-pilot-refill.timer -p NextElapseUSecRealtime --value 2>/dev/null || true)
 [ -n "$nr" ] && [ "$nr" != "n/a" ] && next_refill=$(date -d "$nr" +%s 2>/dev/null || echo 0)
 read -r rl_ts rl_action rl_detail 2>/dev/null <"$STATE_DIR/refill-last" || { rl_ts=0; rl_action=""; rl_detail=""; }
+# the flag is set/cleared by pr-doctor once an hour, so it outlives the fix by up
+# to an hour (a lane closed the suspect issue 4 min after the flag was set, and
+# the panel said RED and pace throttled for the rest of the hour). Clear it here
+# the moment no suspect issue is open — same query pr-doctor uses.
+if [ -f "$STATE_DIR/base-red" ]; then
+  open_suspects=$(gh issue list -R "$GH_REPO" --state open --limit 100 --json title \
+    --jq '[.[] | select(.title | startswith("[CI] Base breakage suspected"))] | length' 2>/dev/null || echo 1)
+  [ "${open_suspects:-1}" -eq 0 ] && rm -f "$STATE_DIR/base-red"
+fi
 b_red=false; [ -f "$STATE_DIR/base-red" ] && b_red=true
 d_low="$(head -c 200 "$STATE_DIR/disk-low" 2>/dev/null || true)"
 # the "needs you" pane lists a few parked issues by title (count comes from blocked_total)
