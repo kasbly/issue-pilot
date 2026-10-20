@@ -7,6 +7,13 @@
 cd "$ISSUE_PILOT_HOME" # so lane CMDs can reference examples/ by relative path
 
 declare -A lane_pid=()
+# Adopt batches that outlived a dispatcher restart (they are setsid'd, so they
+# survive it). Without this a restart double-launched every busy lane, which is
+# why code changes to this loop used to wait for an idle moment that never came.
+for id in ${LANES:-}; do
+  p=$(cat "$STATE_DIR/lane-$id.batch-pid" 2>/dev/null || true)
+  if [ -n "$p" ] && kill -0 "$p" 2>/dev/null; then lane_pid[$id]=$p; log "lane $id: adopted running batch (pid $p)"; fi
+done
 log "dispatcher up (repo=$GH_REPO, lanes: ${LANES:-none})"
 
 while true; do
@@ -65,6 +72,7 @@ while true; do
     fi
     [ "$st" -ne 0 ] && log "lane $id: non-zero exit — issues it claimed may need '$CLAIM_LABEL' removed to re-queue"
     unset "lane_pid[$id]"
+    rm -f "$STATE_DIR/lane-$id.batch-pid"
   done
 
   if paused; then
@@ -97,6 +105,7 @@ while true; do
         >>"$STATE_DIR/batch-$id.log" 2>&1 &
       lane_pid[$id]=$! # setsid: the batch leads its own process group, so a lane
                        # stop can kill orchestrator AND subagents together
+      echo "${lane_pid[$id]}" >"$STATE_DIR/lane-$id.batch-pid"
     done
   fi
   sleep "$POLL_SECS"
