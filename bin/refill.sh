@@ -165,6 +165,15 @@ elif [ -f "$STATE_DIR/claude-role-scanner.disabled" ] || ! pick_claude_account; 
       fbdim=$d; break
     done
   fi
+  # third rung candidate (used below when the Codex rung has no account at pace)
+  fb2=""
+  if [ -n "${SCANNER_FALLBACK2_MODEL:-}" ]; then
+    for d in $SCANNER_DIMENSION ${ring:-}; do
+      case " ${SCANNER_FALLBACK2_DIMS:-*} " in (" * "|*" $d "*) ;; (*) continue ;; esac
+      scanner_eligible "$d" || continue
+      fb2=$d; break
+    done
+  fi
   if [ -n "$fbdim" ] && read -r fb_name fb_home < <(bash "$PKG_DIR/bin/pick-codex-account.sh" 2>/dev/null) && [ -n "${fb_home:-}" ]; then
     if [ "$fbdim" != "$SCANNER_DIMENSION" ]; then
       export SCANNER_DIMENSION=$fbdim
@@ -176,6 +185,20 @@ elif [ -f "$STATE_DIR/claude-role-scanner.disabled" ] || ! pick_claude_account; 
     RUN_CMD="$SCANNER_FALLBACK_CMD"
     run_via="codex $SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
     log "scanner fallback: running $SCANNER_DIMENSION on Codex account '$fb_name' ($SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT)"
+  elif [ -n "$fb2" ]; then
+    # Third rung: every subscription engine is resting at its pace line, but a
+    # pace-exempt model (grok, billed by balance) still has headroom. Yield per
+    # run is lower than Opus, so SCANNER_FALLBACK2_DIMS keeps the judgment-heavy
+    # dims (security, conversation-quality) waiting for their pinned model.
+    if [ "$fb2" != "$SCANNER_DIMENSION" ]; then
+      [ -n "${was_override:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/next-scanner"
+      export SCANNER_DIMENSION=$fb2
+      resolve_prompt_file "$fb2"
+    fi
+    export SCANNER_RUN_MODEL="$SCANNER_FALLBACK2_MODEL"
+    export SCANNER_RUN_EFFORT="${SCANNER_FALLBACK2_EFFORT:-$SCANNER_RUN_EFFORT}"
+    run_via="$SCANNER_RUN_MODEL/$SCANNER_RUN_EFFORT"
+    log "scanner fallback 2: every subscription at pace — running $SCANNER_DIMENSION on $run_via"
   else
     # a deferred run must not eat a "Run next" click — restore the override
     [ -n "${was_override:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/next-scanner"
