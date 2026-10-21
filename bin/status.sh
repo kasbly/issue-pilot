@@ -217,16 +217,16 @@ done
 # promotion state (live commit count; last-run details written by promote.sh)
 pw_count=$(gh api "repos/$GH_REPO/compare/${STAGING_BRANCH:-staging}...${BASE_BRANCH:-main}" --jq .total_commits 2>/dev/null || echo 0)
 read -r pl_ts pl_outcome 2>/dev/null <"$STATE_DIR/promotion-last" || { pl_ts=0; pl_outcome=""; }
-p_active=false; [ -f "$STATE_DIR/promotion-active" ] && p_active=true
+p_active=false; p_since=0; [ -f "$STATE_DIR/promotion-active" ] && { p_active=true; p_since=$(stat -c %Y "$STATE_DIR/promotion-active"); }
 # model/effort: the PROMOTE_MODEL/PROMOTE_EFFORT conf vars, else parsed out of PROMOTE_CMD
 p_eng=$(sniff_engine "${PROMOTE_CMD:-}")
 p_model="${PROMOTE_MODEL:-$(grep -o -E '(-m|--model) [A-Za-z0-9._/-]+' <<<"${PROMOTE_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
 p_effort="${PROMOTE_EFFORT:-$(grep -o -E '(--reasoning-effort|--effort) [a-z]+' <<<"${PROMOTE_CMD:-}" | head -1 | cut -d' ' -f2 || true)}"
 promotion=$(jq -n --arg enabled "${PROMOTE_ENABLED:-false}" --argjson waiting "${pw_count:-0}" \
   --arg pmodel "${p_model:-}" --arg peffort "${p_effort:-}" --arg peng "${p_eng:-}" \
-  --argjson threshold "${PROMOTE_AFTER_COMMITS:-100}" --argjson active "$p_active" \
+  --argjson threshold "${PROMOTE_AFTER_COMMITS:-100}" --argjson active "$p_active" --argjson since "${p_since:-0}" \
   --argjson last_ts "${pl_ts:-0}" --arg last_outcome "${pl_outcome:-}" \
-  '{enabled:($enabled=="true"), waiting:$waiting, threshold:$threshold, active:$active,
+  '{enabled:($enabled=="true"), waiting:$waiting, threshold:$threshold, active:$active, since:(if $since==0 then null else $since end),
     model:(if $pmodel=="" then null else $pmodel end), effort:(if $peffort=="" then null else $peffort end),
     engine:(if $peng=="" then null else $peng end),
     last:(if $last_ts==0 then null else {ts:$last_ts, outcome:$last_outcome} end)}')
