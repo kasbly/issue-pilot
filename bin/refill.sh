@@ -158,7 +158,7 @@ elif [ -f "$STATE_DIR/claude-role-scanner.disabled" ] || ! pick_claude_account; 
   # deferred dim keeps its turn: the pointer advances to whichever dim runs.
   fbdim=""
   if [ -n "${SCANNER_FALLBACK_CMD:-}" ] && [ -n "${SCANNER_DIMENSION:-}" ]; then
-    for d in $SCANNER_DIMENSION ${ring:-}; do
+    for d in $SCANNER_DIMENSION ${ring:-${SCANNER_ROTATION:-}}; do
       # "*" = every dimension may fall back
       case " ${SCANNER_FALLBACK_DIMS:-} " in " * "|*" $d "*) ;; *) continue ;; esac
       scanner_eligible "$d" || continue
@@ -168,7 +168,7 @@ elif [ -f "$STATE_DIR/claude-role-scanner.disabled" ] || ! pick_claude_account; 
   # third rung candidate (used below when the Codex rung has no account at pace)
   fb2=""
   if [ -n "${SCANNER_FALLBACK2_MODEL:-}" ]; then
-    for d in $SCANNER_DIMENSION ${ring:-}; do
+    for d in $SCANNER_DIMENSION ${ring:-${SCANNER_ROTATION:-}}; do
       case " ${SCANNER_FALLBACK2_DIMS:-*} " in (" * "|*" $d "*) ;; (*) continue ;; esac
       scanner_eligible "$d" || continue
       fb2=$d; break
