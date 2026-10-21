@@ -161,7 +161,7 @@ elif [ -f "$STATE_DIR/claude-role-scanner.disabled" ] || ! pick_claude_account; 
     for d in $SCANNER_DIMENSION ${ring:-${SCANNER_ROTATION:-}}; do
       # "*" = every dimension may fall back
       case " ${SCANNER_FALLBACK_DIMS:-} " in " * "|*" $d "*) ;; *) continue ;; esac
-      scanner_eligible "$d" || continue
+      { [ -n "${was_override:-}" ] && [ "$d" = "$SCANNER_DIMENSION" ]; } || scanner_eligible "$d" || continue
       fbdim=$d; break
     done
   fi
@@ -170,12 +170,13 @@ elif [ -f "$STATE_DIR/claude-role-scanner.disabled" ] || ! pick_claude_account; 
   if [ -n "${SCANNER_FALLBACK2_MODEL:-}" ]; then
     for d in $SCANNER_DIMENSION ${ring:-${SCANNER_ROTATION:-}}; do
       case " ${SCANNER_FALLBACK2_DIMS:-*} " in (" * "|*" $d "*) ;; (*) continue ;; esac
-      scanner_eligible "$d" || continue
+      { [ -n "${was_override:-}" ] && [ "$d" = "$SCANNER_DIMENSION" ]; } || scanner_eligible "$d" || continue
       fb2=$d; break
     done
   fi
   if [ -n "$fbdim" ] && read -r fb_name fb_home < <(bash "$PKG_DIR/bin/pick-codex-account.sh" 2>/dev/null) && [ -n "${fb_home:-}" ]; then
     if [ "$fbdim" != "$SCANNER_DIMENSION" ]; then
+      [ -n "${was_override:-}" ] && echo "$SCANNER_DIMENSION" >"$STATE_DIR/next-scanner"
       export SCANNER_DIMENSION=$fbdim
       resolve_prompt_file "$fbdim"
     fi
