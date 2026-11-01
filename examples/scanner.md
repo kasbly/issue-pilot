@@ -22,6 +22,14 @@ done. Do not spend the run re-verifying closed issues; their lanes' CI already
 did. A run that finds nothing new says so in the ledger and stops — a zero is an
 honest result, a leftover is not a substitute for one.
 
+PROTECTED AREAS — customer-facing AI behaviour: `$PROTECTED_PATHS`. What the AI says
+and does for customers is the owner's decision, made on tenant evidence. A UI hint, a
+README, a docs sentence or a settings description is NEVER evidence of a gap there:
+when prose and behaviour disagree, file the prose fix (docs / UI copy), not a behaviour
+change. An issue that asks for a change under a protected path MUST carry a line
+`Evidence: <source>` naming tenant truth — a KB entry, pack config, an approved reply,
+a quality issue, a failing scenario, or a production error — or it is closed unread.
+
 A FOCUS that begins with `LENS:` is a cross-cutting read: apply that ONE failure
 mode across the stated scope (grep for the pattern, then read every hit in
 context) instead of reading one module end to end.

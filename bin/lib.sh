@@ -46,3 +46,23 @@ ready_issues() {
     --search "sort:created-$dir -label:$CLAIM_LABEL" \
     --limit 100 --json number --jq '.[].number'
 }
+
+# --- protected areas: customer-facing AI behaviour ----------------------------
+# PROTECTED_PATHS (space-separated path prefixes) are the parts of the repo that
+# decide what the AI says and does for customers. The pilot changes them only on
+# tenant evidence, never on prose. protected_hit TEXT: 0 when TEXT names one.
+protected_hit() {
+  local p
+  for p in ${PROTECTED_PATHS:-}; do case "$1" in *"$p"*) return 0 ;; esac; done
+  return 1
+}
+# has_evidence BODY LABELS: 0 when the issue is evidence-backed — an evidence type
+# label (PROTECTED_EVIDENCE_LABELS) or an "Evidence:" line naming a tenant-truth
+# source (PROTECTED_EVIDENCE_RE). A UI hint, README or docs sentence never counts.
+has_evidence() {
+  local l
+  for l in ${PROTECTED_EVIDENCE_LABELS:-type/security type/ai}; do
+    case " ${2//,/ } " in *" $l "*) return 0 ;; esac
+  done
+  grep -qiE "${PROTECTED_EVIDENCE_RE:-^evidence:.*(kb|knowledge|pack |pack-|approved reply|quality[- ]issue|scenario|prod|production|sentry|error log|thumbs|complaint)}" <<<"$1"
+}

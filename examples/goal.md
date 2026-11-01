@@ -70,6 +70,15 @@ comment saying it needs maintainer approval — do not implement, do not re-queu
    - Implement the smallest correct fix, following the repo's own conventions
      (CLAUDE.md, CONTRIBUTING.md). Extend existing tests rather than adding new files
      where the repo's policy says so.
+   - PROTECTED AREAS — customer-facing AI behaviour: `$PROTECTED_PATHS`. The pilot
+     changes these only on tenant evidence. If your diff would touch any of them and
+     the issue carries none (no `type/security` or `type/ai` label, and no
+     `Evidence:` line naming a KB entry, pack config, approved reply, quality issue,
+     failing scenario or production error), do NOT push: comment why, close the issue
+     as not planned with the `owner-managed` label, remove the worktree, and move on.
+     Never widen an unrelated fix into a protected path, and never change AI wording,
+     fees, prices, confirmation or order flows to satisfy a UI hint, README or docs
+     sentence — when prose and behaviour disagree there, fix the prose.
    - Commit, push, open a PR against `$BASE_BRANCH` with `Closes #N` in the body.
    - Watch CI (`gh pr checks --watch`). On failure: read logs, fix, push. After 3
      failed rounds, comment on the PR what is blocking and report back as blocked.
