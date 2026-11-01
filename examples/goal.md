@@ -79,6 +79,8 @@ comment saying it needs maintainer approval — do not implement, do not re-queu
      Never widen an unrelated fix into a protected path, and never change AI wording,
      fees, prices, confirmation or order flows to satisfy a UI hint, README or docs
      sentence — when prose and behaviour disagree there, fix the prose.
+   - Re-read the issue right before opening the PR. If it was closed meanwhile
+     (`owner-managed`, duplicate, invalid), abandon: no PR, remove the worktree.
    - Commit, push, open a PR against `$BASE_BRANCH` with `Closes #N` in the body.
    - Watch CI (`gh pr checks --watch`). On failure: read logs, fix, push. After 3
      failed rounds, comment on the PR what is blocking and report back as blocked.
